@@ -272,29 +272,41 @@ def main():
         "什么是混合检索？它为什么比单一检索方法更好？",
     ]
 
-    console.print(Panel(
-        "\n".join(f"  {i}. {q}" for i, q in enumerate(demo_queries, 1)),
-        title="💡 预设演示查询",
-        border_style="yellow",
-    ))
-
-    # 运行演示查询
-    for q in demo_queries:
-        run_rag_query(q, retriever, bm25)
-        console.print()
-
-    # 交互模式
-    console.rule("[bold green]💬 进入交互模式（输入 q 退出）")
+    # 交互菜单
     while True:
+        console.print()
+        console.rule("[bold green]📋 请选择操作")
+        console.print("  [cyan]1[/cyan]. 运行全部预设演示查询（3 个）")
+        for i, q in enumerate(demo_queries, 2):
+            console.print(f"  [cyan]{i}[/cyan]. 演示: {q}")
+        console.print(f"  [cyan]{len(demo_queries) + 2}[/cyan]. 输入自定义问题")
+        console.print(f"  [cyan]q[/cyan]. 退出")
+
         try:
-            query = console.input("\n[bold cyan]你的问题 > [/bold cyan]").strip()
-            if not query or query.lower() in ("q", "quit", "exit"):
-                console.print("[yellow]再见！👋[/yellow]")
-                break
-            run_rag_query(query, retriever, bm25)
+            choice = console.input("\n[bold cyan]请选择 > [/bold cyan]").strip()
         except (KeyboardInterrupt, EOFError):
             console.print("\n[yellow]再见！👋[/yellow]")
             break
+
+        if not choice or choice.lower() in ("q", "quit", "exit"):
+            console.print("[yellow]再见！👋[/yellow]")
+            break
+        elif choice == "1":
+            for q in demo_queries:
+                run_rag_query(q, retriever, bm25)
+                console.print()
+        elif choice.isdigit() and 2 <= int(choice) <= len(demo_queries) + 1:
+            idx = int(choice) - 2
+            run_rag_query(demo_queries[idx], retriever, bm25)
+        elif choice == str(len(demo_queries) + 2):
+            try:
+                query = console.input("[bold cyan]你的问题 > [/bold cyan]").strip()
+                if query:
+                    run_rag_query(query, retriever, bm25)
+            except (KeyboardInterrupt, EOFError):
+                continue
+        else:
+            console.print("[red]无效选择，请重试[/red]")
 
 
 if __name__ == "__main__":
