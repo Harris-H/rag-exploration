@@ -2,7 +2,7 @@
 🤖 路线C-1：极简 RAG Demo —— 从零手搓 RAG 流程
 
 这个脚本展示 RAG 的本质：
-  1. 检索阶段：使用 Route B 的 Embedding 模型找到相关文档
+  1. 检索阶段：使用 BGE-small-zh 中文 Embedding 模型找到相关文档
   2. 增强阶段：将检索到的文档拼接成上下文 Prompt
   3. 生成阶段：调用 Ollama 本地 LLM 生成回答
 
@@ -29,6 +29,7 @@ import numpy as np
 import httpx
 import jieba
 from rank_bm25 import BM25Okapi
+from sentence_transformers import SentenceTransformer
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -40,12 +41,16 @@ console = Console()
 # ─── 配置 ────────────────────────────────────────────
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
 LLM_MODEL = os.environ.get("LLM_MODEL", "qwen2.5:3b")
-EMBED_MODEL = os.environ.get("EMBED_MODEL", "nomic-embed-text")
+EMBED_MODEL_NAME = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-small-zh-v1.5")
 TOP_K = 3
 
 # 绕过代理访问本地 Ollama（避免系统代理拦截 localhost 请求）
 http_client = httpx.Client(proxy=None, timeout=120)
-http_stream_client = httpx.Client(proxy=None, timeout=120)
+
+# 加载 sentence-transformers 中文 Embedding 模型
+console.print(f"[dim]正在加载 Embedding 模型 {EMBED_MODEL_NAME}...[/dim]")
+_embed_model = SentenceTransformer(EMBED_MODEL_NAME)
+console.print(f"[green]✓[/green] Embedding 模型加载完成 (维度={_embed_model.get_sentence_embedding_dimension()})")
 
 # ─── 知识库加载 ──────────────────────────────────────
 def load_knowledge_base() -> list[dict]:
@@ -55,14 +60,9 @@ def load_knowledge_base() -> list[dict]:
 
 
 # ─── Ollama API 封装 ─────────────────────────────────
-def ollama_embed(texts: list[str]) -> list[list[float]]:
-    """调用 Ollama embedding API 获取文本向量"""
-    resp = http_client.post(
-        f"{OLLAMA_BASE_URL}/api/embed",
-        json={"model": EMBED_MODEL, "input": texts},
-    )
-    resp.raise_for_status()
-    return resp.json()["embeddings"]
+def embed_texts(texts: list[str]) -> np.ndarray:
+    """使用 sentence-transformers 中文模型编码文本"""
+    return _embed_model.encode(texts, normalize_embeddings=True)
 
 
 def ollama_generate(prompt: str, system: str = "") -> str:
@@ -100,15 +100,14 @@ class SimpleRetriever:
         self.texts = [f"{d['title']}：{d['content']}" for d in docs]
         console.print("[dim]正在编码知识库文档...[/dim]")
         t0 = time.time()
-        self.embeddings = np.array(ollama_embed(self.texts))
+        self.embeddings = embed_texts(self.texts)
         elapsed = time.time() - t0
         console.print(f"[green]✓[/green] {len(docs)} 篇文档编码完成 ({elapsed:.1f}s), 维度={self.embeddings.shape[1]}")
 
     def search(self, query: str, top_k: int = TOP_K) -> list[tuple[dict, float]]:
-        query_vec = np.array(ollama_embed([query])[0])
-        # 余弦相似度
-        norms = np.linalg.norm(self.embeddings, axis=1) * np.linalg.norm(query_vec)
-        scores = np.dot(self.embeddings, query_vec) / (norms + 1e-10)
+        query_vec = embed_texts([query])[0]
+        # 余弦相似度（已归一化，直接点积）
+        scores = np.dot(self.embeddings, query_vec)
         top_indices = np.argsort(scores)[::-1][:top_k]
         return [(self.docs[i], float(scores[i])) for i in top_indices]
 
@@ -161,8 +160,8 @@ def check_ollama() -> bool:
         models = [m["name"] for m in resp.json().get("models", [])]
         console.print(f"[green]✓[/green] Ollama 服务已连接，可用模型: {', '.join(models)}")
 
-        need_models = {LLM_MODEL, EMBED_MODEL}
-        # 检查模型是否存在（允许部分匹配，如 "qwen2.5:3b" 匹配 "qwen2.5:3b"）
+        need_models = {LLM_MODEL}
+        # 检查模型是否存在（允许部分匹配）
         available = set()
         for m in models:
             for need in need_models:
