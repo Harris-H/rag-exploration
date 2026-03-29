@@ -42,12 +42,16 @@ npm run dev
 
 ### 4. 路线 C 额外要求（本地大模型）
 
+Web 前端和 API 的 Embedding 使用 sentence-transformers (`bge-small-zh`)，首次运行会自动下载。  
+LLM 生成需要 Ollama：
+
 1. 安装 [Ollama](https://ollama.com) 并启动服务
-2. 下载模型：
+2. 下载 LLM 模型：
    ```bash
    ollama pull qwen2.5:3b        # LLM 生成模型（~2GB）
-   ollama pull nomic-embed-text   # Embedding 模型（~274MB）
    ```
+
+> 命令行脚本 `lightrag_demo.py` 额外需要 `ollama pull nomic-embed-text`（~274MB）。
 
 ## Web 前端功能
 
