@@ -102,6 +102,7 @@ export function ragQueryStream(
 
       const decoder = new TextDecoder();
       let buffer = '';
+      let currentEvent = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -112,13 +113,17 @@ export function ragQueryStream(
         buffer = lines.pop() || '';
 
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
+          if (line.startsWith('event: ')) {
+            currentEvent = line.slice(7).trim();
+          } else if (line.startsWith('data: ')) {
+            const rawData = line.slice(6);
+            let parsedData: unknown = rawData;
             try {
-              const data = JSON.parse(line.slice(6));
-              onEvent({ type: data.type || 'unknown', data });
+              parsedData = JSON.parse(rawData);
             } catch {
-              // skip malformed lines
+              // data is plain text (e.g., tokens)
             }
+            onEvent({ type: currentEvent || 'unknown', data: parsedData });
           }
         }
       }

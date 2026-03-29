@@ -13,9 +13,9 @@ interface PipelineStepProps {
 }
 
 const statusStyles: Record<StepStatus, { ring: string; bg: string; text: string }> = {
-  idle: { ring: 'border-white/10', bg: 'bg-white/5', text: 'text-white/30' },
-  active: { ring: 'border-blue-500', bg: 'bg-blue-500/10', text: 'text-blue-400' },
-  done: { ring: 'border-green-500/50', bg: 'bg-green-500/10', text: 'text-green-400' },
+  idle: { ring: 'border-slate-200', bg: 'bg-slate-50', text: 'text-slate-400' },
+  active: { ring: 'border-blue-500', bg: 'bg-blue-50', text: 'text-blue-600' },
+  done: { ring: 'border-green-500', bg: 'bg-green-50', text: 'text-green-600' },
 };
 
 export default function PipelineStep({
@@ -46,14 +46,14 @@ export default function PipelineStep({
           )}
         </motion.div>
         {!isLast && (
-          <div className={`w-px h-8 ${status === 'done' ? 'bg-green-500/30' : 'bg-white/10'}`} />
+          <div className={`w-px h-8 ${status === 'done' ? 'bg-green-300' : 'bg-slate-200'}`} />
         )}
       </div>
 
       {/* Step content */}
       <div className="pb-6">
         <h4 className={`font-medium text-sm ${style.text}`}>{title}</h4>
-        <p className="text-white/40 text-xs mt-0.5">{description}</p>
+        <p className="text-slate-500 text-xs mt-0.5">{description}</p>
         {status === 'active' && (
           <motion.div
             className="mt-2 flex gap-1"
@@ -63,7 +63,7 @@ export default function PipelineStep({
             {[0, 1, 2].map((i) => (
               <motion.div
                 key={i}
-                className="w-1.5 h-1.5 rounded-full bg-blue-400"
+                className="w-1.5 h-1.5 rounded-full bg-blue-600"
                 animate={{ opacity: [0.3, 1, 0.3] }}
                 transition={{ duration: 1, delay: i * 0.2, repeat: Infinity }}
               />

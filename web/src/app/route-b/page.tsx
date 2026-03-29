@@ -55,12 +55,12 @@ export default function RouteBPage() {
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
         <div className="flex items-center gap-3 mb-3">
-          <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400">
+          <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-purple-50 text-purple-600">
             路线 B
           </span>
           <h1 className="text-2xl font-bold">向量嵌入检索</h1>
         </div>
-        <p className="text-white/40 text-sm leading-relaxed max-w-2xl">
+        <p className="text-slate-500 text-sm leading-relaxed max-w-2xl">
           使用 Embedding 模型将文本映射到高维向量空间，通过余弦相似度进行语义匹配。
           混合搜索模式将 BM25 和向量检索结果融合，取长补短。
         </p>
@@ -77,8 +77,8 @@ export default function RouteBPage() {
             onClick={() => { setTab(key); setError(null); }}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               tab === key
-                ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
-                : 'bg-white/5 text-white/40 border border-white/[0.06] hover:text-white/60'
+                ? 'bg-purple-50 text-purple-600 border border-purple-200'
+                : 'bg-slate-50 text-slate-500 border border-slate-200 hover:text-slate-700'
             }`}
           >
             {label}
@@ -102,7 +102,7 @@ export default function RouteBPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="mb-8 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm"
+            className="mb-8 p-4 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm"
           >
             ⚠️ {error}
           </motion.div>
@@ -113,7 +113,7 @@ export default function RouteBPage() {
       {loading && (
         <div className="space-y-4">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-24 rounded-xl bg-white/[0.03] animate-pulse" />
+            <div key={i} className="h-24 rounded-xl bg-slate-100 animate-pulse" />
           ))}
         </div>
       )}
@@ -123,23 +123,23 @@ export default function RouteBPage() {
         {tab === 'embedding' && embeddingData && !loading && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
             {/* Stats */}
-            <div className="flex gap-4 mb-8 text-xs text-white/30">
-              <span>耗时: <strong className="text-white/60">{embeddingData.elapsed_ms.toFixed(1)}ms</strong></span>
-              <span>嵌入维度: <strong className="text-white/60">{embeddingData.embedding_dim}</strong></span>
-              <span>结果数: <strong className="text-white/60">{embeddingData.results.length}</strong></span>
+            <div className="flex gap-4 mb-8 text-xs text-slate-400">
+              <span>耗时: <strong className="text-slate-600">{embeddingData.elapsed_ms.toFixed(1)}ms</strong></span>
+              <span>嵌入维度: <strong className="text-slate-600">{embeddingData.embedding_dim}</strong></span>
+              <span>结果数: <strong className="text-slate-600">{embeddingData.results.length}</strong></span>
             </div>
 
             {/* Chart */}
             {embChartData.length > 0 && (
-              <div className="mb-8 p-5 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-                <h3 className="text-xs font-medium text-white/40 mb-4">余弦相似度分布</h3>
+              <div className="mb-8 p-5 rounded-xl bg-white border border-slate-200 shadow-sm">
+                <h3 className="text-xs font-medium text-slate-500 mb-4">余弦相似度分布</h3>
                 <ResponsiveContainer width="100%" height={embChartData.length * 50 + 20}>
                   <BarChart data={embChartData} layout="vertical" margin={{ left: 10, right: 30 }}>
-                    <XAxis type="number" domain={[0, Math.min(embMax * 1.2, 1)]} tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="name" width={100} tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <XAxis type="number" domain={[0, Math.min(embMax * 1.2, 1)]} tick={{ fill: 'rgba(100,116,139,0.7)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="name" width={100} tick={{ fill: 'rgba(71,85,105,0.8)', fontSize: 11 }} axisLine={false} tickLine={false} />
                     <Tooltip
-                      contentStyle={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px' }}
-                      labelStyle={{ color: 'rgba(255,255,255,0.7)' }}
+                      contentStyle={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px' }}
+                      labelStyle={{ color: '#334155' }}
                       itemStyle={{ color: '#a855f7' }}
                     />
                     <Bar dataKey="score" radius={[0, 4, 4, 0]} animationDuration={800}>
@@ -154,7 +154,7 @@ export default function RouteBPage() {
 
             {/* Result cards */}
             <div className="space-y-3">
-              <h3 className="text-xs font-medium text-white/40 mb-2">检索结果</h3>
+              <h3 className="text-xs font-medium text-slate-500 mb-2">检索结果</h3>
               {embeddingData.results.map((result, i) => (
                 <ResultCard key={i} title={result.title} score={result.score} content={result.content} index={i} scoreLabel="相似度" />
               ))}
@@ -168,16 +168,16 @@ export default function RouteBPage() {
         {tab === 'hybrid' && hybridData && !loading && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
             {/* Stats */}
-            <div className="flex gap-4 mb-8 text-xs text-white/30">
-              <span>耗时: <strong className="text-white/60">{hybridData.elapsed_ms.toFixed(1)}ms</strong></span>
+            <div className="flex gap-4 mb-8 text-xs text-slate-400">
+              <span>耗时: <strong className="text-slate-600">{hybridData.elapsed_ms.toFixed(1)}ms</strong></span>
             </div>
 
             {/* Three-column comparison */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
               {/* BM25 column */}
               <div className="space-y-3">
-                <h3 className="text-xs font-medium text-blue-400 mb-3 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-400" />
+                <h3 className="text-xs font-medium text-blue-600 mb-3 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-600" />
                   BM25 结果
                 </h3>
                 {hybridData.bm25_results.map((r, i) => {
@@ -188,8 +188,8 @@ export default function RouteBPage() {
 
               {/* Embedding column */}
               <div className="space-y-3">
-                <h3 className="text-xs font-medium text-purple-400 mb-3 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-purple-400" />
+                <h3 className="text-xs font-medium text-purple-600 mb-3 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-purple-600" />
                   向量结果
                 </h3>
                 {hybridData.embedding_results.map((r, i) => {
@@ -200,8 +200,8 @@ export default function RouteBPage() {
 
               {/* Hybrid column */}
               <div className="space-y-3">
-                <h3 className="text-xs font-medium text-emerald-400 mb-3 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <h3 className="text-xs font-medium text-emerald-600 mb-3 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600" />
                   混合结果
                 </h3>
                 {hybridData.hybrid_results.map((r, i) => {
@@ -213,7 +213,7 @@ export default function RouteBPage() {
 
             {/* Hybrid result cards */}
             <div className="space-y-3">
-              <h3 className="text-xs font-medium text-white/40 mb-2">混合检索详细结果</h3>
+              <h3 className="text-xs font-medium text-slate-500 mb-2">混合检索详细结果</h3>
               {hybridData.hybrid_results.map((result, i) => (
                 <ResultCard key={i} title={result.title} score={result.score} content={result.content} index={i} scoreLabel="混合分" />
               ))}

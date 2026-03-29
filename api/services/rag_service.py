@@ -7,7 +7,7 @@ from typing import AsyncGenerator
 
 import httpx
 
-from .embedding_service import _ensure_model, _model, _doc_embeddings
+from . import embedding_service
 from .knowledge_base import load_knowledge_base
 import numpy as np
 
@@ -34,10 +34,10 @@ def _build_rag_prompt(query: str, context_docs: list[tuple[dict, float]]) -> str
 
 
 def _retrieve(query: str, top_k: int = 3) -> list[tuple[dict, float]]:
-    _ensure_model()
+    embedding_service._ensure_model()
     docs = load_knowledge_base()
-    q_vec = _model.encode([query], normalize_embeddings=True)
-    sims = (q_vec @ _doc_embeddings.T).flatten()
+    q_vec = embedding_service._model.encode([query], normalize_embeddings=True)
+    sims = (q_vec @ embedding_service._doc_embeddings.T).flatten()
     top_indices = np.argsort(sims)[::-1][:top_k]
     return [(docs[i], float(sims[i])) for i in top_indices]
 

@@ -31,9 +31,9 @@ export default function SearchInput({
         onChange={(e) => setQuery(e.target.value)}
         placeholder={placeholder}
         disabled={loading}
-        className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white
-                   placeholder:text-white/30 focus:outline-none focus:border-blue-500/50
-                   focus:ring-1 focus:ring-blue-500/30 transition-all disabled:opacity-50"
+        className="flex-1 px-4 py-3 rounded-xl bg-white border border-slate-300 text-slate-900
+                   placeholder:text-slate-400 focus:outline-none focus:border-blue-400
+                   focus:ring-1 focus:ring-blue-400 transition-all disabled:opacity-50"
       />
       <button
         type="submit"
