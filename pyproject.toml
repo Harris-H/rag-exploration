@@ -1,0 +1,28 @@
+[project]
+name = "rag-exploration"
+version = "0.1.0"
+description = "RAG 技术路线选型与可视化学习项目"
+requires-python = ">=3.11"
+dependencies = [
+    "jieba>=0.42.1",
+    "rank-bm25>=0.2.2",
+    "rich>=14.3.3",
+    "scikit-learn>=1.8.0",
+    "sentence-transformers>=2.2.2",
+    "torch>=2.5.0",
+    "matplotlib>=3.7.0",
+    "numpy>=1.24.0",
+    "lightrag-hku>=1.4.0",
+    "httpx>=0.27.0",
+    "ollama>=0.6.1",
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu" },
+]

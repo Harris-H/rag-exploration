@@ -1,0 +1,11 @@
+# 路线A 依赖（极轻量，无需 GPU）
+rank_bm25>=0.2.2
+jieba>=0.42.1
+rich>=13.0.0
+
+# 路线B 依赖（轻量深度学习）
+scikit-learn>=1.8.0
+sentence-transformers>=2.2.2
+torch>=2.5.0
+matplotlib>=3.7.0
+numpy>=1.24.0

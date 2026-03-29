@@ -1,0 +1,15 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Generated plots and data
+route_b_embedding/plots/
+route_c_full_rag/plots/
+route_c_full_rag/lightrag_data/
