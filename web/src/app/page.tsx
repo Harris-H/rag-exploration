@@ -1,65 +1,130 @@
-import Image from "next/image";
+'use client';
+
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+
+const routes = [
+  {
+    href: '/route-a',
+    label: '路线 A',
+    title: 'BM25 关键词搜索',
+    description: '经典的 TF-IDF 变体算法，通过词频和逆文档频率进行文本匹配。理解信息检索的基础。',
+    icon: '🔤',
+    color: 'from-blue-500/20 to-blue-600/5',
+    border: 'hover:border-blue-500/30',
+    badge: 'bg-blue-500/10 text-blue-400',
+  },
+  {
+    href: '/route-b',
+    label: '路线 B',
+    title: '向量嵌入检索',
+    description: '使用语义嵌入模型将文本映射到高维空间，通过余弦相似度发现语义关联。支持混合搜索对比。',
+    icon: '🧮',
+    color: 'from-purple-500/20 to-purple-600/5',
+    border: 'hover:border-purple-500/30',
+    badge: 'bg-purple-500/10 text-purple-400',
+  },
+  {
+    href: '/route-c',
+    label: '路线 C',
+    title: '完整 RAG 管道',
+    description: '将检索结果注入 Prompt，由本地 LLM 生成答案。体验完整的检索增强生成流程，支持流式输出。',
+    icon: '🤖',
+    color: 'from-emerald-500/20 to-emerald-600/5',
+    border: 'hover:border-emerald-500/30',
+    badge: 'bg-emerald-500/10 text-emerald-400',
+  },
+];
+
+const containerVariants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.15 } },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 30 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' as const } },
+};
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className="max-w-4xl mx-auto px-6 py-20">
+      {/* Hero */}
+      <motion.div
+        className="text-center mb-20"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4">
+          RAG <span className="text-blue-400">探索之旅</span>
+        </h1>
+        <p className="text-white/40 text-lg max-w-xl mx-auto leading-relaxed">
+          从关键词搜索到向量检索，再到完整的检索增强生成管道。
+          <br />
+          渐进式理解 RAG 的每一个核心环节。
+        </p>
+      </motion.div>
+
+      {/* What is RAG */}
+      <motion.div
+        className="mb-16 p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06]"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3, duration: 0.6 }}
+      >
+        <h2 className="text-sm font-medium text-white/60 mb-3 flex items-center gap-2">
+          <span className="w-1 h-1 rounded-full bg-blue-400" />
+          什么是 RAG？
+        </h2>
+        <p className="text-white/40 text-sm leading-relaxed">
+          <strong className="text-white/70">检索增强生成（Retrieval-Augmented Generation）</strong>
+          是一种结合信息检索与大语言模型的技术。它先从知识库中检索相关文档，
+          然后将检索结果作为上下文注入 Prompt，让 LLM 基于实际数据生成更准确的回答。
+          这种方式有效减少了幻觉问题，并让模型能够访问最新的领域知识。
+        </p>
+      </motion.div>
+
+      {/* Route cards */}
+      <motion.div
+        className="grid gap-4"
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+      >
+        {routes.map((route) => (
+          <motion.div key={route.href} variants={itemVariants}>
+            <Link href={route.href} className="block group">
+              <div
+                className={`relative p-6 rounded-2xl border border-white/[0.06] ${route.border}
+                            bg-gradient-to-br ${route.color} transition-all duration-300
+                            hover:translate-x-1`}
+              >
+                <div className="flex items-start gap-4">
+                  <span className="text-2xl">{route.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className={`text-xs font-mono px-2 py-0.5 rounded-md ${route.badge}`}>
+                        {route.label}
+                      </span>
+                      <h3 className="text-white font-semibold">{route.title}</h3>
+                    </div>
+                    <p className="text-white/40 text-sm leading-relaxed">
+                      {route.description}
+                    </p>
+                  </div>
+                  <svg
+                    className="w-5 h-5 text-white/20 group-hover:text-white/50 group-hover:translate-x-1 transition-all shrink-0 mt-1"
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </div>
+            </Link>
+          </motion.div>
+        ))}
+      </motion.div>
     </div>
   );
 }
