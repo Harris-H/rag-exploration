@@ -19,6 +19,10 @@ import json
 import os
 import sys
 import time
+import warnings
+
+warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
+
 import numpy as np
 from rank_bm25 import BM25Okapi
 import jieba

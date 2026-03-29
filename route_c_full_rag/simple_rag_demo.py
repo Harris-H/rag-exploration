@@ -20,6 +20,10 @@ import json
 import os
 import sys
 import time
+import warnings
+
+# 抑制 jieba 内部的 pkg_resources 弃用警告
+warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
 
 # 确保本地 Ollama 请求不走系统代理（避免 502 Bad Gateway）
 os.environ["NO_PROXY"] = os.environ.get("NO_PROXY", "") + ",localhost,127.0.0.1"

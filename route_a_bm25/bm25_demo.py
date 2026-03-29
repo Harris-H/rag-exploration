@@ -13,6 +13,10 @@
 
 import json
 import os
+import warnings
+
+warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
+
 from rank_bm25 import BM25Okapi
 import jieba
 from rich.console import Console
