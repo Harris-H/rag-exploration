@@ -17,6 +17,9 @@ import json
 import os
 import sys
 import numpy as np
+
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+
 import matplotlib
 matplotlib.use("Agg")  # 非交互式后端，适合终端环境
 import matplotlib.pyplot as plt

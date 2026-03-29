@@ -25,6 +25,9 @@ import warnings
 # 抑制 jieba 内部的 pkg_resources 弃用警告
 warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
 
+# 模型已缓存在本地，跳过 HuggingFace 在线检查（避免国内网络超时）
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+
 # 确保本地 Ollama 请求不走系统代理（避免 502 Bad Gateway）
 os.environ["NO_PROXY"] = os.environ.get("NO_PROXY", "") + ",localhost,127.0.0.1"
 os.environ["no_proxy"] = os.environ.get("no_proxy", "") + ",localhost,127.0.0.1"
