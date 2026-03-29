@@ -20,6 +20,11 @@ import json
 import os
 import sys
 import time
+
+# 确保本地 Ollama 请求不走系统代理（避免 502 Bad Gateway）
+os.environ["NO_PROXY"] = os.environ.get("NO_PROXY", "") + ",localhost,127.0.0.1"
+os.environ["no_proxy"] = os.environ.get("no_proxy", "") + ",localhost,127.0.0.1"
+
 import numpy as np
 import httpx
 import jieba

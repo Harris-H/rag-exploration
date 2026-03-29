@@ -28,9 +28,9 @@ import time
 
 import numpy as np
 
-# 确保本地 Ollama 请求不走系统代理
-os.environ.setdefault("NO_PROXY", "localhost,127.0.0.1")
-os.environ.setdefault("no_proxy", "localhost,127.0.0.1")
+# 确保本地 Ollama 请求不走系统代理（避免 502 Bad Gateway）
+os.environ["NO_PROXY"] = os.environ.get("NO_PROXY", "") + ",localhost,127.0.0.1"
+os.environ["no_proxy"] = os.environ.get("no_proxy", "") + ",localhost,127.0.0.1"
 
 from rich.console import Console
 from rich.panel import Panel
