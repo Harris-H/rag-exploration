@@ -6,6 +6,9 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import SearchInput from '@/components/SearchInput';
 import ScoreBar from '@/components/ScoreBar';
 import ResultCard from '@/components/ResultCard';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   embeddingSearch,
   hybridSearch,
@@ -55,172 +58,166 @@ export default function RouteBPage() {
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
         <div className="flex items-center gap-3 mb-3">
-          <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-purple-50 text-purple-600">
+          <Badge variant="outline" className="font-mono bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-500/30">
             路线 B
-          </span>
-          <h1 className="text-2xl font-bold">向量嵌入检索</h1>
+          </Badge>
+          <h1 className="text-2xl font-bold text-foreground">向量嵌入检索</h1>
         </div>
-        <p className="text-slate-500 text-sm leading-relaxed max-w-2xl">
+        <p className="text-muted-foreground text-sm leading-relaxed max-w-2xl">
           使用 Embedding 模型将文本映射到高维向量空间，通过余弦相似度进行语义匹配。
           混合搜索模式将 BM25 和向量检索结果融合，取长补短。
         </p>
       </motion.div>
 
       {/* Tab switcher */}
-      <div className="flex gap-2 mb-6">
-        {([
-          { key: 'embedding' as Tab, label: '向量搜索' },
-          { key: 'hybrid' as Tab, label: '混合搜索' },
-        ]).map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => { setTab(key); setError(null); }}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              tab === key
-                ? 'bg-purple-50 text-purple-600 border border-purple-200'
-                : 'bg-slate-50 text-slate-500 border border-slate-200 hover:text-slate-700'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <Tabs value={tab} onValueChange={(v) => { setTab(v as Tab); setError(null); }} className="mb-6">
+        <TabsList>
+          <TabsTrigger value="embedding">向量搜索</TabsTrigger>
+          <TabsTrigger value="hybrid">混合搜索</TabsTrigger>
+        </TabsList>
 
-      {/* Search */}
-      <div className="mb-10">
-        <SearchInput
-          onSearch={handleSearch}
-          loading={loading}
-          placeholder={tab === 'embedding' ? '输入语义搜索内容...' : '输入混合搜索内容...'}
-        />
-      </div>
-
-      {/* Error */}
-      <AnimatePresence>
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="mb-8 p-4 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm"
-          >
-            ⚠️ {error}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Loading skeleton */}
-      {loading && (
-        <div className="space-y-4">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-24 rounded-xl bg-slate-100 animate-pulse" />
-          ))}
+        {/* Search */}
+        <div className="my-6">
+          <SearchInput
+            onSearch={handleSearch}
+            loading={loading}
+            placeholder={tab === 'embedding' ? '输入语义搜索内容...' : '输入混合搜索内容...'}
+          />
         </div>
-      )}
 
-      {/* Embedding results */}
-      <AnimatePresence>
-        {tab === 'embedding' && embeddingData && !loading && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
-            {/* Stats */}
-            <div className="flex gap-4 mb-8 text-xs text-slate-400">
-              <span>耗时: <strong className="text-slate-600">{embeddingData.elapsed_ms.toFixed(1)}ms</strong></span>
-              <span>嵌入维度: <strong className="text-slate-600">{embeddingData.embedding_dim}</strong></span>
-              <span>结果数: <strong className="text-slate-600">{embeddingData.results.length}</strong></span>
-            </div>
+        {/* Error */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="mb-8 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm"
+            >
+              ⚠️ {error}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-            {/* Chart */}
-            {embChartData.length > 0 && (
-              <div className="mb-8 p-5 rounded-xl bg-white border border-slate-200 shadow-sm">
-                <h3 className="text-xs font-medium text-slate-500 mb-4">余弦相似度分布</h3>
-                <ResponsiveContainer width="100%" height={embChartData.length * 50 + 20}>
-                  <BarChart data={embChartData} layout="vertical" margin={{ left: 10, right: 30 }}>
-                    <XAxis type="number" domain={[0, Math.min(embMax * 1.2, 1)]} tick={{ fill: 'rgba(100,116,139,0.7)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="name" width={100} tick={{ fill: 'rgba(71,85,105,0.8)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <Tooltip
-                      contentStyle={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px' }}
-                      labelStyle={{ color: '#334155' }}
-                      itemStyle={{ color: '#a855f7' }}
-                    />
-                    <Bar dataKey="score" radius={[0, 4, 4, 0]} animationDuration={800}>
-                      {embChartData.map((_, index) => (
-                        <Cell key={index} fill={`rgba(168, 85, 247, ${1 - index * 0.15})`} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+        {/* Loading skeleton */}
+        {loading && (
+          <div className="space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />
+            ))}
+          </div>
+        )}
+
+        {/* Embedding results */}
+        <TabsContent value="embedding">
+          <AnimatePresence>
+            {embeddingData && !loading && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
+                {/* Stats */}
+                <div className="flex gap-4 mb-8 text-xs text-muted-foreground">
+                  <span>耗时: <strong className="text-foreground">{embeddingData.elapsed_ms.toFixed(1)}ms</strong></span>
+                  <span>嵌入维度: <strong className="text-foreground">{embeddingData.embedding_dim}</strong></span>
+                  <span>结果数: <strong className="text-foreground">{embeddingData.results.length}</strong></span>
+                </div>
+
+                {/* Chart */}
+                {embChartData.length > 0 && (
+                  <Card className="mb-8">
+                    <CardContent>
+                      <h3 className="text-xs font-medium text-muted-foreground mb-4">余弦相似度分布</h3>
+                      <ResponsiveContainer width="100%" height={embChartData.length * 50 + 20}>
+                        <BarChart data={embChartData} layout="vertical" margin={{ left: 10, right: 30 }}>
+                          <XAxis type="number" domain={[0, Math.min(embMax * 1.2, 1)]} tick={{ fill: 'var(--color-muted-foreground)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                          <YAxis type="category" dataKey="name" width={100} tick={{ fill: 'var(--color-foreground)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                          <Tooltip
+                            contentStyle={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '12px' }}
+                            labelStyle={{ color: 'var(--color-foreground)' }}
+                            itemStyle={{ color: '#a855f7' }}
+                          />
+                          <Bar dataKey="score" radius={[0, 4, 4, 0]} animationDuration={800}>
+                            {embChartData.map((_, index) => (
+                              <Cell key={index} fill={`rgba(168, 85, 247, ${1 - index * 0.15})`} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Result cards */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-medium text-muted-foreground mb-2">检索结果</h3>
+                  {embeddingData.results.map((result, i) => (
+                    <ResultCard key={i} title={result.title} score={result.score} content={result.content} index={i} scoreLabel="相似度" />
+                  ))}
+                </div>
+              </motion.div>
             )}
+          </AnimatePresence>
+        </TabsContent>
 
-            {/* Result cards */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-medium text-slate-500 mb-2">检索结果</h3>
-              {embeddingData.results.map((result, i) => (
-                <ResultCard key={i} title={result.title} score={result.score} content={result.content} index={i} scoreLabel="相似度" />
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        {/* Hybrid results */}
+        <TabsContent value="hybrid">
+          <AnimatePresence>
+            {hybridData && !loading && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
+                {/* Stats */}
+                <div className="flex gap-4 mb-8 text-xs text-muted-foreground">
+                  <span>耗时: <strong className="text-foreground">{hybridData.elapsed_ms.toFixed(1)}ms</strong></span>
+                </div>
 
-      {/* Hybrid results */}
-      <AnimatePresence>
-        {tab === 'hybrid' && hybridData && !loading && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
-            {/* Stats */}
-            <div className="flex gap-4 mb-8 text-xs text-slate-400">
-              <span>耗时: <strong className="text-slate-600">{hybridData.elapsed_ms.toFixed(1)}ms</strong></span>
-            </div>
+                {/* Three-column comparison */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                  {/* BM25 column */}
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-3 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400" />
+                      BM25 结果
+                    </h3>
+                    {hybridData.bm25_results.map((r, i) => {
+                      const maxS = hybridData.bm25_results[0]?.score || 1;
+                      return <ScoreBar key={i} label={r.title} score={r.score} maxScore={maxS} index={i} color="#3b82f6" />;
+                    })}
+                  </div>
 
-            {/* Three-column comparison */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              {/* BM25 column */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-medium text-blue-600 mb-3 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-600" />
-                  BM25 结果
-                </h3>
-                {hybridData.bm25_results.map((r, i) => {
-                  const maxS = hybridData.bm25_results[0]?.score || 1;
-                  return <ScoreBar key={i} label={r.title} score={r.score} maxScore={maxS} index={i} color="#3b82f6" />;
-                })}
-              </div>
+                  {/* Embedding column */}
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-medium text-purple-600 dark:text-purple-400 mb-3 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-purple-600 dark:bg-purple-400" />
+                      向量结果
+                    </h3>
+                    {hybridData.embedding_results.map((r, i) => {
+                      const maxS = hybridData.embedding_results[0]?.score || 1;
+                      return <ScoreBar key={i} label={r.title} score={r.score} maxScore={maxS} index={i} color="#a855f7" />;
+                    })}
+                  </div>
 
-              {/* Embedding column */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-medium text-purple-600 mb-3 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-purple-600" />
-                  向量结果
-                </h3>
-                {hybridData.embedding_results.map((r, i) => {
-                  const maxS = hybridData.embedding_results[0]?.score || 1;
-                  return <ScoreBar key={i} label={r.title} score={r.score} maxScore={maxS} index={i} color="#a855f7" />;
-                })}
-              </div>
+                  {/* Hybrid column */}
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mb-3 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-600 dark:bg-emerald-400" />
+                      混合结果
+                    </h3>
+                    {hybridData.hybrid_results.map((r, i) => {
+                      const maxS = hybridData.hybrid_results[0]?.score || 1;
+                      return <ScoreBar key={i} label={r.title} score={r.score} maxScore={maxS} index={i} color="#10b981" />;
+                    })}
+                  </div>
+                </div>
 
-              {/* Hybrid column */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-medium text-emerald-600 mb-3 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-600" />
-                  混合结果
-                </h3>
-                {hybridData.hybrid_results.map((r, i) => {
-                  const maxS = hybridData.hybrid_results[0]?.score || 1;
-                  return <ScoreBar key={i} label={r.title} score={r.score} maxScore={maxS} index={i} color="#10b981" />;
-                })}
-              </div>
-            </div>
-
-            {/* Hybrid result cards */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-medium text-slate-500 mb-2">混合检索详细结果</h3>
-              {hybridData.hybrid_results.map((result, i) => (
-                <ResultCard key={i} title={result.title} score={result.score} content={result.content} index={i} scoreLabel="混合分" />
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                {/* Hybrid result cards */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-medium text-muted-foreground mb-2">混合检索详细结果</h3>
+                  {hybridData.hybrid_results.map((result, i) => (
+                    <ResultCard key={i} title={result.title} score={result.score} content={result.content} index={i} scoreLabel="混合分" />
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

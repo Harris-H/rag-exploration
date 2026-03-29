@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import { Search, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 interface SearchInputProps {
   onSearch: (query: string) => void;
@@ -25,35 +28,26 @@ export default function SearchInput({
 
   return (
     <form onSubmit={handleSubmit} className="flex gap-3 w-full max-w-2xl">
-      <input
+      <Input
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={placeholder}
         disabled={loading}
-        className="flex-1 px-4 py-3 rounded-xl bg-white border border-slate-300 text-slate-900
-                   placeholder:text-slate-400 focus:outline-none focus:border-blue-400
-                   focus:ring-1 focus:ring-blue-400 transition-all disabled:opacity-50"
+        className="flex-1 h-11 px-4 rounded-xl"
       />
-      <button
+      <Button
         type="submit"
         disabled={loading || !query.trim()}
-        className="px-6 py-3 rounded-xl bg-blue-600 text-white font-medium
-                   hover:bg-blue-500 active:bg-blue-700 transition-colors
-                   disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+        className="h-11 px-6 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white gap-2"
       >
         {loading ? (
-          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-          </svg>
+          <Loader2 className="size-5 animate-spin" />
         ) : (
-          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          <Search className="size-5" />
         )}
         搜索
-      </button>
+      </Button>
     </form>
   );
 }
