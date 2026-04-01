@@ -387,6 +387,7 @@ async def enhanced_query_stream(
 
     # Track final chunks for citation post-processing
     citation_chunks: list[tuple[ChunkInfo, float]] = []
+    stage_time = time.perf_counter()
 
     # Step 1 (optional): Query Expansion
     all_queries = [query]
@@ -394,23 +395,29 @@ async def enhanced_query_stream(
         variants = _expand_query(query, model=llm_model)
         if variants:
             all_queries = [query] + variants
+        expansion_ms = round((time.perf_counter() - stage_time) * 1000, 1)
+        stage_time = time.perf_counter()
         yield {
             "event": "expansion",
             "data": json.dumps({
                 "original": query,
                 "variants": variants,
                 "total_queries": len(all_queries),
+                "elapsed_ms": expansion_ms,
             }, ensure_ascii=False),
         }
 
     if use_chunking:
         # Step 2: Chunking
         index = _build_chunk_index(chunk_strategy, chunk_size)
+        chunking_ms = round((time.perf_counter() - stage_time) * 1000, 1)
+        stage_time = time.perf_counter()
         chunking_info = {
             "strategy": chunk_strategy,
             "chunk_size": chunk_size,
             "num_chunks": len(index.chunks),
             "num_source_docs": len(load_knowledge_base()),
+            "elapsed_ms": chunking_ms,
         }
         yield {"event": "chunking", "data": json.dumps(chunking_info, ensure_ascii=False)}
 
@@ -423,6 +430,8 @@ async def enhanced_query_stream(
         else:
             candidates = _retrieve_chunks(query, index, retrieve_count, use_hybrid)
 
+        retrieval_ms = round((time.perf_counter() - stage_time) * 1000, 1)
+        stage_time = time.perf_counter()
         retrieval_data = [
             {
                 "text": c.text[:200],
@@ -432,14 +441,20 @@ async def enhanced_query_stream(
             }
             for c, score in candidates
         ]
-        yield {"event": "retrieval", "data": json.dumps(retrieval_data, ensure_ascii=False)}
+        yield {"event": "retrieval", "data": json.dumps({
+            "results": retrieval_data,
+            "elapsed_ms": retrieval_ms,
+        }, ensure_ascii=False)}
 
         # Step 4: Rerank (optional)
         if use_reranking and len(candidates) > 0:
             rerank_result = _rerank_chunks(query, candidates, top_k)
+            reranking_ms = round((time.perf_counter() - stage_time) * 1000, 1)
+            stage_time = time.perf_counter()
             yield {"event": "reranking", "data": json.dumps({
                 "before": rerank_result["before"],
                 "after": rerank_result["after"],
+                "elapsed_ms": reranking_ms,
             }, ensure_ascii=False)}
             final_chunks = rerank_result["candidates"]
         else:
@@ -455,17 +470,24 @@ async def enhanced_query_stream(
     else:
         # Fallback: use original full-doc retrieval
         retrieval_results = rag_service._retrieve(query, top_k)
+        retrieval_ms = round((time.perf_counter() - stage_time) * 1000, 1)
+        stage_time = time.perf_counter()
         retrieval_data = [
             {"title": doc["title"], "content": doc["content"], "score": round(score, 4)}
             for doc, score in retrieval_results
         ]
-        yield {"event": "retrieval", "data": json.dumps(retrieval_data, ensure_ascii=False)}
+        yield {"event": "retrieval", "data": json.dumps({
+            "results": retrieval_data,
+            "elapsed_ms": retrieval_ms,
+        }, ensure_ascii=False)}
         prompt = rag_service._build_rag_prompt(query, retrieval_results)
         sources = [
             {"index": i + 1, "doc_title": doc["title"], "doc_id": doc.get("id", "")}
             for i, (doc, _) in enumerate(retrieval_results)
         ]
 
+    prompt_ms = round((time.perf_counter() - stage_time) * 1000, 1)
+    stage_time = time.perf_counter()
     yield {"event": "prompt", "data": prompt}
 
     # Step 6: Stream LLM tokens
@@ -495,6 +517,7 @@ async def enhanced_query_stream(
                     yield {"event": "token", "data": token}
 
     # Step 7: Done — post-process citations and strip thinking tags
+    generation_ms = round((time.perf_counter() - stage_time) * 1000, 1)
     elapsed_ms = round((time.perf_counter() - t0) * 1000, 1)
     full_answer = "".join(collected_tokens)
     # Strip any leaked <think>...</think> blocks
@@ -506,6 +529,8 @@ async def enhanced_query_stream(
         "data": json.dumps({
             "full_answer": full_answer,
             "elapsed_ms": elapsed_ms,
+            "generation_ms": generation_ms,
+            "prompt_ms": prompt_ms,
             "model": llm_model,
             "config": config,
             "sources": sources,

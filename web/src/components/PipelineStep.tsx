@@ -10,6 +10,7 @@ interface PipelineStepProps {
   description: string;
   status: StepStatus;
   isLast?: boolean;
+  elapsedMs?: number | null;
 }
 
 const statusStyles: Record<StepStatus, { ring: string; bg: string; text: string }> = {
@@ -24,6 +25,7 @@ export default function PipelineStep({
   description,
   status,
   isLast = false,
+  elapsedMs,
 }: PipelineStepProps) {
   const style = statusStyles[status];
 
@@ -52,7 +54,20 @@ export default function PipelineStep({
 
       {/* Step content */}
       <div className="pb-6">
-        <h4 className={`font-medium text-sm ${style.text}`}>{title}</h4>
+        <div className="flex items-center gap-2">
+          <h4 className={`font-medium text-sm ${style.text}`}>{title}</h4>
+          {status === 'done' && elapsedMs != null && (
+            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+              elapsedMs > 10000
+                ? 'bg-red-100 dark:bg-red-500/15 text-red-600 dark:text-red-400'
+                : elapsedMs > 3000
+                  ? 'bg-amber-100 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                  : 'bg-green-100 dark:bg-green-500/15 text-green-600 dark:text-green-400'
+            }`}>
+              {elapsedMs >= 1000 ? `${(elapsedMs / 1000).toFixed(1)}s` : `${Math.round(elapsedMs)}ms`}
+            </span>
+          )}
+        </div>
         <p className="text-muted-foreground text-xs mt-0.5">{description}</p>
         {status === 'active' && (
           <motion.div

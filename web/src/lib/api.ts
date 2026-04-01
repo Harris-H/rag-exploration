@@ -285,12 +285,14 @@ export interface EnhancedRerankResult extends EnhancedChunkResult {
 export interface EnhancedRerankData {
   before: EnhancedRerankResult[];
   after: EnhancedRerankResult[];
+  elapsed_ms?: number;
 }
 
 export interface QueryExpansionData {
   original: string;
   variants: string[];
   total_queries: number;
+  elapsed_ms?: number;
 }
 
 export interface ChunkingEventData {
@@ -298,6 +300,7 @@ export interface ChunkingEventData {
   chunk_size: number;
   num_chunks: number;
   num_source_docs: number;
+  elapsed_ms?: number;
 }
 
 export interface CitationSource {
@@ -309,6 +312,8 @@ export interface CitationSource {
 export interface EnhancedDoneData {
   full_answer: string;
   elapsed_ms: number;
+  generation_ms?: number;
+  prompt_ms?: number;
   model: string;
   config: EnhancedRAGConfig;
   sources?: CitationSource[];

@@ -40,6 +40,8 @@ const INITIAL_PIPELINE: PipelineState = {
   reranking: 'idle', prompt: 'idle', generation: 'idle',
 };
 
+type StageTiming = Partial<Record<keyof PipelineState, number>>;
+
 type Mode = 'enhanced' | 'baseline';
 
 export default function RouteCPage() {
@@ -76,6 +78,7 @@ export default function RouteCPage() {
   const [ragAnswer, setRagAnswer] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [doneData, setDoneData] = useState<EnhancedDoneData | null>(null);
+  const [timing, setTiming] = useState<StageTiming>({});
   const controllerRef = useRef<AbortController | null>(null);
 
   const reset = useCallback(() => {
@@ -89,6 +92,7 @@ export default function RouteCPage() {
     setIsStreaming(false);
     setDoneData(null);
     setPipeline(INITIAL_PIPELINE);
+    setTiming({});
   }, []);
 
   const handleSearch = useCallback((query: string) => {
@@ -118,13 +122,20 @@ export default function RouteCPage() {
           if (type === 'config') {
             // config echo - skip
           } else if (type === 'expansion') {
-            setExpansionData(data as QueryExpansionData);
+            const d = data as QueryExpansionData;
+            setExpansionData(d);
+            if (d.elapsed_ms) setTiming(t => ({ ...t, expansion: d.elapsed_ms }));
             setPipeline(p => ({ ...p, expansion: 'done', chunking: skipChunking ? 'done' : 'active' }));
           } else if (type === 'chunking') {
-            setChunkingInfo(data as ChunkingEventData);
+            const d = data as ChunkingEventData;
+            setChunkingInfo(d);
+            if (d.elapsed_ms) setTiming(t => ({ ...t, chunking: d.elapsed_ms }));
             setPipeline(p => ({ ...p, expansion: 'done', chunking: 'done', retrieval: 'active' }));
           } else if (type === 'retrieval') {
-            setRetrievalResults(data as EnhancedChunkResult[]);
+            // Backend sends { results: [...], elapsed_ms: N }
+            const d = data as { results: EnhancedChunkResult[]; elapsed_ms?: number };
+            setRetrievalResults(d.results ?? data as EnhancedChunkResult[]);
+            if (d.elapsed_ms) setTiming(t => ({ ...t, retrieval: d.elapsed_ms }));
             setPipeline(p => ({
               ...p,
               expansion: 'done',
@@ -133,7 +144,9 @@ export default function RouteCPage() {
               reranking: skipReranking ? 'done' : 'active',
             }));
           } else if (type === 'reranking') {
-            setRerankData(data as EnhancedRerankData);
+            const d = data as EnhancedRerankData;
+            setRerankData(d);
+            if (d.elapsed_ms) setTiming(t => ({ ...t, reranking: d.elapsed_ms }));
             setPipeline(p => ({ ...p, reranking: 'done', prompt: 'active' }));
           } else if (type === 'prompt') {
             setPromptText(typeof data === 'string' ? data : '');
@@ -144,6 +157,12 @@ export default function RouteCPage() {
           } else if (type === 'done') {
             const d = data as EnhancedDoneData;
             setDoneData(d);
+            // Store prompt and generation timing from done event
+            setTiming(t => ({
+              ...t,
+              ...(d.prompt_ms != null ? { prompt: d.prompt_ms } : {}),
+              ...(d.generation_ms != null ? { generation: d.generation_ms } : {}),
+            }));
             // Replace streaming text with post-processed answer (has proper citations)
             if (d.full_answer) {
               setRagAnswer(d.full_answer);
@@ -426,6 +445,7 @@ export default function RouteCPage() {
                     title="查询扩展"
                     description={useExpansion ? 'LLM 生成查询变体' : '跳过'}
                     status={pipeline.expansion}
+                    elapsedMs={timing.expansion}
                   />
                 )}
                 {isEnhanced && (
@@ -434,6 +454,7 @@ export default function RouteCPage() {
                     title="文档分块"
                     description={useChunking ? `${chunkStrategy} · ${chunkSize}字` : '跳过（全文档模式）'}
                     status={pipeline.chunking}
+                    elapsedMs={timing.chunking}
                   />
                 )}
                 <PipelineStep
@@ -443,6 +464,7 @@ export default function RouteCPage() {
                     ? (useExpansion ? '多查询 RRF 融合' : 'BM25 + Embedding + RRF')
                     : 'Embedding 向量相似度'}
                   status={pipeline.retrieval}
+                  elapsedMs={timing.retrieval}
                 />
                 {isEnhanced && (
                   <PipelineStep
@@ -450,6 +472,7 @@ export default function RouteCPage() {
                     title="重排序"
                     description={useReranking ? 'Cross-Encoder 精排' : '跳过'}
                     status={pipeline.reranking}
+                    elapsedMs={timing.reranking}
                   />
                 )}
                 <PipelineStep
@@ -457,12 +480,14 @@ export default function RouteCPage() {
                   title="Prompt 构建"
                   description="将检索结果注入提示词"
                   status={pipeline.prompt}
+                  elapsedMs={timing.prompt}
                 />
                 <PipelineStep
                   number={isEnhanced ? 7 : 4}
                   title="LLM 生成"
                   description="大语言模型生成答案"
                   status={pipeline.generation}
+                  elapsedMs={timing.generation}
                   isLast
                 />
               </CardContent>
