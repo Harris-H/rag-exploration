@@ -84,8 +84,11 @@ LLM 生成需要 Ollama：
 | ✂️ 文档分块 | 4 种分块策略 | 递归(推荐)/句子边界/滑动窗口/固定长度，可调分块大小 50-500 字 |
 | 🔍 混合检索 | BM25 + Embedding + RRF 融合 | 可切换纯向量/混合模式，支持多查询并行检索 |
 | 🔄 重排序 | Cross-Encoder 精排 | 对比重排前后排名变化（↑/↓/═），可开关 |
-| 📝 Prompt 构建 | 自动注入检索片段 | 带来源归属的参考片段拼接 |
+| 📝 Prompt 构建 | 自动注入检索片段 | 带来源归属的参考片段拼接，指示 LLM 标注引用编号 |
 | 🤖 LLM 流式生成 | Ollama 实时输出 | 逐 token 流式显示，SSE 推送 |
+| 📎 引用标注 | 内联引用 + 来源列表 | 回答中 `[1]`、`[2]` 上标徽章，hover 显示来源文档，底部参考来源汇总 |
+
+**引用标注机制**：Prompt 指示 LLM 在引用参考片段时标注来源编号 `[1]`、`[2]`；后端对 LLM 输出做后处理兜底（清除空括号、基于文本重叠自动注入遗漏的引用），确保小模型（3B）也能可靠输出引用。前端 `CitedText` 组件将 `[N]` 渲染为翠绿色上标圆形徽章，悬浮显示来源文档标题。
 
 **左侧** 实时 Pipeline 状态可视化（7 步流程动画），**右侧** 逐步展示查询扩展变体、分块信息、检索结果、重排序对比、Prompt 和流式回答。
 
@@ -150,7 +153,7 @@ uv run route_c_full_rag/visualize_pipeline.py # RAG 流程可视化图表
 │   │   │   ├── ChunkingTab.tsx         #     分块策略 Tab 组件
 │   │   │   └── EvaluationTab.tsx       #     检索评估 Tab 组件
 │   │   └── route-c/page.tsx            #   路线C：完整 RAG 演示
-│   ├── src/components/                 # 共享组件
+│   ├── src/components/                 # 共享组件（含 CitedText 引用渲染）
 │   └── src/lib/api.ts                  # API 客户端
 │
 ├── api/                                # FastAPI 后端
