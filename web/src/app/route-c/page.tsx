@@ -133,6 +133,10 @@ export default function RouteCPage() {
           } else if (type === 'done') {
             const d = data as EnhancedDoneData;
             setDoneData(d);
+            // Replace streaming text with post-processed answer (has proper citations)
+            if (d.full_answer) {
+              setRagAnswer(d.full_answer);
+            }
             setPipeline({
               input: 'done', expansion: 'done', chunking: 'done', retrieval: 'done',
               reranking: 'done', prompt: 'done', generation: 'done',

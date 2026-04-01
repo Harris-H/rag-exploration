@@ -290,10 +290,72 @@ def _build_enhanced_prompt(query: str, chunks: list[tuple[ChunkInfo, float]]) ->
         f"用户问题：{query}\n\n"
         f"回答要求：\n"
         f"- 用中文回答，条理清晰\n"
-        f"- 在引用参考资料内容时，在相关句子末尾标注来源编号，如 [1]、[2]\n"
-        f"- 编号对应上面的参考片段编号\n"
-        f"- 可以综合多个参考片段，标注多个来源如 [1][3]"
+        f"- 在引用参考资料内容时，在相关句子末尾标注来源编号，格式为[1]、[2]、[3]\n"
+        f"- 编号对应上面的参考片段编号，可以综合标注如[1][3]"
     )
+
+
+def _post_process_citations(
+    answer: str,
+    chunks: list[tuple[ChunkInfo, float]],
+) -> str:
+    """Ensure answer has proper inline citations via text-overlap matching.
+
+    Strategy:
+    1. If the LLM already produced valid [N] citations, keep them.
+    2. Otherwise, split answer into sentences, compute overlap with each
+       source chunk, and inject [N] at the end of sentences with high overlap.
+    """
+    import re as _re
+
+    # Clean up malformed brackets the LLM might produce
+    answer = _re.sub(r"\[\s*\]", "", answer)       # empty []
+    answer = _re.sub(r"\[R(\d+)\]", r"[\1]", answer)  # [R3] → [3]
+
+    # Check if valid citations already exist
+    existing = set(int(m) for m in _re.findall(r"\[(\d+)\]", answer))
+    valid_indices = set(range(1, len(chunks) + 1))
+    if existing & valid_indices:
+        return answer.strip()
+
+    # No valid citations found → inject via text overlap
+    def _overlap_score(sentence: str, chunk_text: str) -> float:
+        s_chars = set(sentence)
+        c_chars = set(chunk_text)
+        if not s_chars:
+            return 0.0
+        return len(s_chars & c_chars) / len(s_chars | c_chars)
+
+    # Split answer into sentences (Chinese punctuation aware)
+    sentences = _re.split(r"(?<=[。！？\n])", answer)
+    result_parts: list[str] = []
+
+    for sent in sentences:
+        stripped = sent.strip()
+        if not stripped or len(stripped) < 5:
+            result_parts.append(sent)
+            continue
+
+        # Find best matching chunk
+        best_idx, best_score = 0, 0.0
+        for i, (chunk, _) in enumerate(chunks, 1):
+            score = _overlap_score(stripped, chunk.text)
+            if score > best_score:
+                best_score = score
+                best_idx = i
+
+        if best_score > 0.15 and best_idx > 0:
+            # Insert citation before the sentence-ending punctuation
+            m = _re.search(r"[。！？]$", sent)
+            if m:
+                pos = m.start()
+                sent = sent[:pos] + f"[{best_idx}]" + sent[pos:]
+            else:
+                sent = sent.rstrip() + f"[{best_idx}]"
+
+        result_parts.append(sent)
+
+    return "".join(result_parts).strip()
 
 
 async def enhanced_query_stream(
@@ -319,6 +381,9 @@ async def enhanced_query_stream(
         "top_k": top_k,
     }
     yield {"event": "config", "data": json.dumps(config, ensure_ascii=False)}
+
+    # Track final chunks for citation post-processing
+    citation_chunks: list[tuple[ChunkInfo, float]] = []
 
     # Step 1 (optional): Query Expansion
     all_queries = [query]
@@ -379,6 +444,7 @@ async def enhanced_query_stream(
 
         # Step 5: Build prompt from chunks
         prompt = _build_enhanced_prompt(query, final_chunks)
+        citation_chunks = final_chunks
         sources = [
             {"index": i + 1, "doc_title": c.doc_title, "doc_id": c.doc_id}
             for i, (c, _) in enumerate(final_chunks)
@@ -424,9 +490,11 @@ async def enhanced_query_stream(
                     collected_tokens.append(token)
                     yield {"event": "token", "data": token}
 
-    # Step 7: Done
+    # Step 7: Done — post-process citations
     elapsed_ms = round((time.perf_counter() - t0) * 1000, 1)
     full_answer = "".join(collected_tokens)
+    if citation_chunks:
+        full_answer = _post_process_citations(full_answer, citation_chunks)
     yield {
         "event": "done",
         "data": json.dumps({
