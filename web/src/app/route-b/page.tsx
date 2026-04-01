@@ -15,8 +15,11 @@ import {
   type EmbeddingResponse,
   type HybridResponse,
 } from '@/lib/api';
+import RerankingTab from './RerankingTab';
+import ChunkingTab from './ChunkingTab';
+import EvaluationTab from './EvaluationTab';
 
-type Tab = 'embedding' | 'hybrid';
+type Tab = 'embedding' | 'hybrid' | 'reranking' | 'chunking' | 'evaluation';
 
 export default function RouteBPage() {
   const [tab, setTab] = useState<Tab>('embedding');
@@ -65,7 +68,7 @@ export default function RouteBPage() {
         </div>
         <p className="text-muted-foreground text-sm leading-relaxed max-w-2xl">
           使用 Embedding 模型将文本映射到高维向量空间，通过余弦相似度进行语义匹配。
-          混合搜索模式将 BM25 和向量检索结果融合，取长补短。
+          支持混合搜索、Cross-Encoder 重排序、分块策略对比与 IR 指标评估。
         </p>
       </motion.div>
 
@@ -74,9 +77,13 @@ export default function RouteBPage() {
         <TabsList>
           <TabsTrigger value="embedding">向量搜索</TabsTrigger>
           <TabsTrigger value="hybrid">混合搜索</TabsTrigger>
+          <TabsTrigger value="reranking">🔄 重排序</TabsTrigger>
+          <TabsTrigger value="chunking">✂️ 分块策略</TabsTrigger>
+          <TabsTrigger value="evaluation">📏 检索评估</TabsTrigger>
         </TabsList>
 
-        {/* Search */}
+        {/* Search input only for embedding/hybrid tabs */}
+        {(tab === 'embedding' || tab === 'hybrid') && (
         <div className="my-6">
           <SearchInput
             onSearch={handleSearch}
@@ -84,8 +91,10 @@ export default function RouteBPage() {
             placeholder={tab === 'embedding' ? '输入语义搜索内容...' : '输入混合搜索内容...'}
           />
         </div>
+        )}
 
-        {/* Error */}
+        {/* Error only for embedding/hybrid tabs */}
+        {(tab === 'embedding' || tab === 'hybrid') && (
         <AnimatePresence>
           {error && (
             <motion.div
@@ -98,9 +107,10 @@ export default function RouteBPage() {
             </motion.div>
           )}
         </AnimatePresence>
+        )}
 
-        {/* Loading skeleton */}
-        {loading && (
+        {/* Loading skeleton only for embedding/hybrid tabs */}
+        {(tab === 'embedding' || tab === 'hybrid') && loading && (
           <div className="space-y-4">
             {[...Array(3)].map((_, i) => (
               <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />
@@ -217,6 +227,11 @@ export default function RouteBPage() {
             )}
           </AnimatePresence>
         </TabsContent>
+
+        {/* New self-contained tabs */}
+        <TabsContent value="reranking"><RerankingTab /></TabsContent>
+        <TabsContent value="chunking"><ChunkingTab /></TabsContent>
+        <TabsContent value="evaluation"><EvaluationTab /></TabsContent>
       </Tabs>
     </div>
   );

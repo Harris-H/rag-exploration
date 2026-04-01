@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import bm25, embedding, rag
+from .routers import bm25, embedding, rag, enhanced_rag, eval, reranking, chunking
 from .services import knowledge_base, embedding_service, rag_service
 
 
@@ -44,6 +44,10 @@ app.add_middleware(
 app.include_router(bm25.router, prefix="/api")
 app.include_router(embedding.router, prefix="/api")
 app.include_router(rag.router, prefix="/api")
+app.include_router(enhanced_rag.router, prefix="/api")
+app.include_router(chunking.router, prefix="/api")
+app.include_router(reranking.router, prefix="/api")
+app.include_router(eval.router, prefix="/api")
 
 
 @app.get("/api/health")

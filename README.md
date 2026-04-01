@@ -61,8 +61,32 @@ LLM 生成需要 Ollama：
 |------|------|------|
 | 首页 | `/` | 项目介绍 + 三条路线导航 |
 | 路线A | `/route-a` | BM25 关键词检索演示，得分柱状图 |
-| 路线B | `/route-b` | 语义向量检索 + 混合检索，BM25 vs Embedding 对比 |
-| 路线C | `/route-c` | 完整 RAG 流程动画：检索 → 构建 Prompt → LLM 流式生成 |
+| 路线B | `/route-b` | 语义向量检索 + 混合检索 + Cross-Encoder 重排序 + 分块策略对比 + IR 指标评估 |
+| 路线C | `/route-c` | 完整 RAG 管道：分块 → 混合检索 → 重排序 → Prompt → LLM 流式生成（增强/基线双模式） |
+
+### 路线 B 详细功能（5 个 Tab）
+
+| Tab | 功能 | 说明 |
+|-----|------|------|
+| 向量搜索 | Embedding 语义检索 | 使用 BGE-small-zh 模型，余弦相似度匹配 |
+| 混合搜索 | BM25 + Embedding + RRF 融合 | 三列对比显示各方法结果 |
+| 🔄 重排序 | Cross-Encoder 二次排序 | 对比重排前后的排名变化，含原理解释 |
+| ✂️ 分块策略 | 4 种分块策略对比 | 固定长度/句子边界/滑动窗口/递归分块，可调分块大小 |
+| 📏 检索评估 | MRR/P@K/R@K/NDCG 指标 | 10 条测试查询 × 3 种方法，柱状图 + 表格 + 逐查询详情 |
+
+### 路线 C 详细功能（增强模式）
+
+路线 C 提供 **增强模式** 和 **基线模式** 两种对比：
+
+| 步骤 | 功能 | 说明 |
+|------|------|------|
+| ✂️ 文档分块 | 4 种分块策略 | 递归(推荐)/句子边界/滑动窗口/固定长度，可调分块大小 50-500 字 |
+| 🔍 混合检索 | BM25 + Embedding + RRF 融合 | 可切换纯向量/混合模式 |
+| 🔄 重排序 | Cross-Encoder 精排 | 对比重排前后排名变化（↑/↓/═），可开关 |
+| 📝 Prompt 构建 | 自动注入检索片段 | 带来源归属的参考片段拼接 |
+| 🤖 LLM 流式生成 | Ollama 实时输出 | 逐 token 流式显示，SSE 推送 |
+
+**左侧** 实时 Pipeline 状态可视化（6 步流程动画），**右侧** 逐步展示分块信息、检索结果、重排序对比、Prompt 和流式回答。
 
 ## 命令行脚本
 
@@ -81,7 +105,15 @@ uv run route_a_bm25/bm25_demo.py
 ```bash
 uv run route_b_embedding/embedding_demo.py    # 语义检索 Demo
 uv run route_b_embedding/hybrid_search.py     # BM25 + Embedding 混合检索
+uv run route_b_embedding/reranking_demo.py    # Cross-Encoder 重排序
 uv run route_b_embedding/visualize_vectors.py # 生成向量空间可视化图表
+```
+
+### 📏 评估 & 分块
+
+```bash
+uv run evaluation/eval_demo.py                # IR 指标评估（MRR/NDCG/P@K/R@K）
+uv run preprocessing/chunking_demo.py         # 4 种分块策略对比
 ```
 
 ### 🔴 路线C：完整 LLM RAG
@@ -100,7 +132,7 @@ uv run route_c_full_rag/visualize_pipeline.py # RAG 流程可视化图表
 |------|------|
 | 前端 | Next.js 16 · TypeScript · Tailwind CSS · shadcn/ui · Framer Motion · Recharts |
 | 后端 API | FastAPI · SSE (Server-Sent Events) · Uvicorn |
-| 检索 | jieba 分词 · rank-bm25 · sentence-transformers (BGE-small-zh) |
+| 检索 | jieba 分词 · rank-bm25 · sentence-transformers (BGE-small-zh) · Cross-Encoder (BGE-reranker-base) |
 | 生成 | Ollama (qwen2.5:3b) · LightRAG |
 | 包管理 | uv (Python) · npm (Node.js) |
 
@@ -111,21 +143,26 @@ uv run route_c_full_rag/visualize_pipeline.py # RAG 流程可视化图表
 │   ├── src/app/                        # App Router 页面
 │   │   ├── page.tsx                    #   首页
 │   │   ├── route-a/page.tsx            #   路线A：BM25 演示
-│   │   ├── route-b/page.tsx            #   路线B：Embedding 演示
+│   │   ├── route-b/                    #   路线B：Embedding 演示
+│   │   │   ├── page.tsx                #     主页面（5 个 Tab）
+│   │   │   ├── RerankingTab.tsx        #     重排序 Tab 组件
+│   │   │   ├── ChunkingTab.tsx         #     分块策略 Tab 组件
+│   │   │   └── EvaluationTab.tsx       #     检索评估 Tab 组件
 │   │   └── route-c/page.tsx            #   路线C：完整 RAG 演示
 │   ├── src/components/                 # 共享组件
 │   └── src/lib/api.ts                  # API 客户端
 │
 ├── api/                                # FastAPI 后端
 │   ├── main.py                         #   入口 + CORS 配置
-│   ├── routers/                        #   路由（bm25 / embedding / rag）
-│   └── services/                       #   业务逻辑层
+│   ├── routers/                        #   路由（bm25 / embedding / rag / enhanced_rag / reranking / chunking / eval）
+│   └── services/                       #   业务逻辑层（含 enhanced_rag_service）
 │
 ├── route_a_bm25/                       # 路线A 命令行脚本
 │   └── bm25_demo.py
 ├── route_b_embedding/                  # 路线B 命令行脚本
 │   ├── embedding_demo.py
 │   ├── hybrid_search.py
+│   ├── reranking_demo.py               # Cross-Encoder 重排序
 │   ├── visualize_vectors.py
 │   └── plots/                          # 生成的图表
 ├── route_c_full_rag/                   # 路线C 命令行脚本
@@ -135,10 +172,32 @@ uv run route_c_full_rag/visualize_pipeline.py # RAG 流程可视化图表
 │   ├── plots/                          # 生成的图表
 │   └── lightrag_data/                  # LightRAG 索引（自动生成）
 │
+├── evaluation/                         # 检索评估
+│   └── eval_demo.py                    # MRR/NDCG/P@K/R@K 评估脚本
+├── preprocessing/                      # 预处理工具
+│   └── chunking_demo.py                # 4 种分块策略对比
+│
 ├── sample_docs/
-│   └── knowledge_base.json             # 10 篇中文知识库文档
+│   └── knowledge_base.json             # 15 篇中文知识库文档
 ├── docs/
 │   └── issues-and-analysis.md          # 项目问题记录与分析
 ├── RAG技术路线选型指南.md
 └── pyproject.toml
 ```
+
+## 模型下载说明
+
+项目启动时默认 `HF_HUB_OFFLINE=1`，需提前下载模型。中国大陆用户可使用镜像：
+
+```powershell
+$env:HF_HUB_OFFLINE="0"
+$env:HF_ENDPOINT="https://hf-mirror.com"
+uv run python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-small-zh-v1.5')"
+uv run python -c "from sentence_transformers import CrossEncoder; CrossEncoder('BAAI/bge-reranker-base')"
+```
+
+| 模型 | 用途 | 大小 |
+|------|------|------|
+| BAAI/bge-small-zh-v1.5 | Embedding 向量化（512 维） | ~90MB |
+| BAAI/bge-reranker-base | Cross-Encoder 重排序 | ~400MB |
+| qwen2.5:3b (Ollama) | 路线C LLM 生成 | ~2GB |

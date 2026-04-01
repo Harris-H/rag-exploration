@@ -48,5 +48,30 @@
     "id": "doc_10",
     "title": "Ollama 本地模型部署",
     "content": "Ollama是一个开源的本地大模型运行工具，支持在个人电脑上快速部署和运行各种开源LLM。它提供了简洁的命令行界面和HTTP API，支持的模型包括Llama3、Qwen2.5、Phi-3、Mistral等。Ollama会自动进行模型量化（如GGUF格式），使得7B参数的模型在16GB内存的电脑上即可流畅运行，3B参数的模型甚至只需8GB内存。对于RAG系统来说，Ollama是本地部署LLM最便捷的方式之一。"
+  },
+  {
+    "id": "doc_11",
+    "title": "Google 搜索引擎的检索排序算法",
+    "content": "Google搜索引擎使用PageRank算法对网页进行检索和排序，这是一种基于链接分析的排序算法。PageRank的核心思想是：一个网页被越多高质量的网页链接，它的排名就越高。Google还使用了倒排索引（Inverted Index）来加速关键词检索，以及BERT模型来理解搜索查询的语义意图。Google每天处理超过85亿次搜索请求，其检索系统的延迟通常在200毫秒以内。"
+  },
+  {
+    "id": "doc_12",
+    "title": "提示工程与上下文学习",
+    "content": "提示工程（Prompt Engineering）是指设计和优化输入给大语言模型的提示文本，以获得更好的输出结果。常见的提示技巧包括：少样本学习（Few-Shot Learning，在提示中给出几个示例）、思维链（Chain-of-Thought，引导模型逐步推理）、以及角色设定（给模型分配特定身份）。在RAG系统中，如何将检索到的文档片段有效地组织进提示中，是影响最终生成质量的关键因素。好的提示设计能让模型更好地利用检索结果，减少幻觉。"
+  },
+  {
+    "id": "doc_13",
+    "title": "Python 机器学习入门",
+    "content": "Python是机器学习领域最流行的编程语言。Scikit-learn提供了丰富的传统机器学习算法（如决策树、随机森林、SVM、K近邻），而PyTorch和TensorFlow则是深度学习的主要框架。训练一个机器学习模型通常包括：数据预处理、特征工程、模型选择、超参数调优和模型评估等步骤。常用的评估指标包括准确率（Accuracy）、精确率（Precision）、召回率（Recall）和F1分数。"
+  },
+  {
+    "id": "doc_14",
+    "title": "Cross-Encoder 重排序技术",
+    "content": "Cross-Encoder是一种精确的文本相关性判断模型。与Bi-Encoder（双塔模型）将查询和文档分别编码不同，Cross-Encoder将查询和文档拼接后一起输入Transformer模型，直接输出相关性分数。这使得Cross-Encoder能捕捉查询与文档之间的细粒度交互，准确度远高于Bi-Encoder。但由于需要对每个候选文档都进行一次完整的前向传播，Cross-Encoder的计算成本较高，通常用于对初始检索结果进行二次重排序（Reranking），而非直接用于全量检索。常用的Cross-Encoder模型包括BAAI/bge-reranker和ms-marco-MiniLM。"
+  },
+  {
+    "id": "doc_15",
+    "title": "推荐系统中的协同过滤",
+    "content": "协同过滤（Collaborative Filtering）是推荐系统中最经典的算法之一。它的基本思想是：如果用户A和用户B有相似的历史行为（如购买、评分），那么A喜欢的物品B也可能喜欢。协同过滤分为基于用户的协同过滤（User-Based CF）和基于物品的协同过滤（Item-Based CF）。现代推荐系统通常使用矩阵分解（如SVD）或深度学习模型（如Neural CF）来实现。与搜索引擎的检索排序不同，推荐系统更注重个性化和长期用户兴趣建模。"
   }
 ]
