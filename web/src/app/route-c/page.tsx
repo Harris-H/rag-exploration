@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import SearchInput from '@/components/SearchInput';
 import PipelineStep from '@/components/PipelineStep';
 import StreamingText from '@/components/StreamingText';
+import CitedText from '@/components/CitedText';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ import {
   type EnhancedDoneData,
   type EmbeddingResult,
   type QueryExpansionData,
+  type CitationSource,
 } from '@/lib/api';
 import { Settings2, Zap, ZapOff, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -606,7 +608,11 @@ export default function RouteCPage() {
                   🤖 {isEnhanced ? '增强 RAG 回答' : 'RAG 回答'}
                 </h3>
                 <div className="p-5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30">
-                  <StreamingText text={ragAnswer} isStreaming={isStreaming} />
+                  {isEnhanced ? (
+                    <CitedText text={ragAnswer} sources={doneData?.sources ?? []} isStreaming={isStreaming} />
+                  ) : (
+                    <StreamingText text={ragAnswer} isStreaming={isStreaming} />
+                  )}
                 </div>
               </motion.div>
             )}

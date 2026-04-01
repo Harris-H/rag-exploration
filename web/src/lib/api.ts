@@ -288,11 +288,18 @@ export interface ChunkingEventData {
   num_source_docs: number;
 }
 
+export interface CitationSource {
+  index: number;
+  doc_title: string;
+  doc_id: string;
+}
+
 export interface EnhancedDoneData {
   full_answer: string;
   elapsed_ms: number;
   model: string;
   config: EnhancedRAGConfig;
+  sources?: CitationSource[];
 }
 
 export function enhancedRagQueryStream(

@@ -279,7 +279,7 @@ def _rerank_chunks(
 
 
 def _build_enhanced_prompt(query: str, chunks: list[tuple[ChunkInfo, float]]) -> str:
-    """Build RAG prompt from retrieved chunks with source attribution."""
+    """Build RAG prompt from retrieved chunks with citation instructions."""
     parts = []
     for i, (chunk, _) in enumerate(chunks, 1):
         parts.append(f"[参考片段{i}] (来源: {chunk.doc_title})\n{chunk.text}")
@@ -288,7 +288,11 @@ def _build_enhanced_prompt(query: str, chunks: list[tuple[ChunkInfo, float]]) ->
         f"请根据以下参考资料回答用户的问题。如果参考资料中没有相关信息，请如实说明。\n\n"
         f"---参考资料---\n{context_text}\n---参考资料结束---\n\n"
         f"用户问题：{query}\n\n"
-        f"请用中文回答，条理清晰，适当引用参考资料中的内容。"
+        f"回答要求：\n"
+        f"- 用中文回答，条理清晰\n"
+        f"- 在引用参考资料内容时，在相关句子末尾标注来源编号，如 [1]、[2]\n"
+        f"- 编号对应上面的参考片段编号\n"
+        f"- 可以综合多个参考片段，标注多个来源如 [1][3]"
     )
 
 
@@ -375,6 +379,10 @@ async def enhanced_query_stream(
 
         # Step 5: Build prompt from chunks
         prompt = _build_enhanced_prompt(query, final_chunks)
+        sources = [
+            {"index": i + 1, "doc_title": c.doc_title, "doc_id": c.doc_id}
+            for i, (c, _) in enumerate(final_chunks)
+        ]
     else:
         # Fallback: use original full-doc retrieval
         retrieval_results = rag_service._retrieve(query, top_k)
@@ -384,6 +392,10 @@ async def enhanced_query_stream(
         ]
         yield {"event": "retrieval", "data": json.dumps(retrieval_data, ensure_ascii=False)}
         prompt = rag_service._build_rag_prompt(query, retrieval_results)
+        sources = [
+            {"index": i + 1, "doc_title": doc["title"], "doc_id": doc.get("id", "")}
+            for i, (doc, _) in enumerate(retrieval_results)
+        ]
 
     yield {"event": "prompt", "data": prompt}
 
@@ -422,5 +434,6 @@ async def enhanced_query_stream(
             "elapsed_ms": elapsed_ms,
             "model": rag_service.LLM_MODEL,
             "config": config,
+            "sources": sources,
         }, ensure_ascii=False),
     }
