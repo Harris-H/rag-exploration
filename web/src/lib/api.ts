@@ -1,5 +1,16 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+export interface ModelsResponse {
+  models: string[];
+  default: string;
+}
+
+export async function fetchModels(): Promise<ModelsResponse> {
+  const res = await fetch(`${API_BASE}/api/rag/models`);
+  if (!res.ok) throw new Error('Failed to fetch models');
+  return res.json();
+}
+
 export interface BM25Result {
   title: string;
   content: string;
@@ -254,6 +265,7 @@ export interface EnhancedRAGConfig {
   use_hybrid: boolean;
   use_reranking: boolean;
   top_k: number;
+  model?: string;
 }
 
 export interface EnhancedChunkResult {
@@ -312,6 +324,7 @@ export function enhancedRagQueryStream(
     chunkSize?: number;
     useHybrid?: boolean;
     useReranking?: boolean;
+    model?: string;
   },
   onEvent: (event: { type: string; data: unknown }) => void,
   onError: (error: Error) => void,
@@ -328,6 +341,7 @@ export function enhancedRagQueryStream(
     chunk_size: options.chunkSize ?? 200,
     use_hybrid: options.useHybrid ?? true,
     use_reranking: options.useReranking ?? true,
+    model: options.model || null,
   };
 
   fetch(`${API_BASE}/api/rag/enhanced-query`, {

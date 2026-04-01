@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import SearchInput from '@/components/SearchInput';
 import PipelineStep from '@/components/PipelineStep';
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import {
   enhancedRagQueryStream,
   ragQueryStream,
+  fetchModels,
   type EnhancedChunkResult,
   type EnhancedRerankData,
   type ChunkingEventData,
@@ -55,6 +56,16 @@ export default function RouteCPage() {
   const [useHybrid, setUseHybrid] = useState(true);
   const [useReranking, setUseReranking] = useState(true);
   const [showConfig, setShowConfig] = useState(true);
+  const [selectedModel, setSelectedModel] = useState('');
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+
+  // Fetch available models on mount
+  useEffect(() => {
+    fetchModels().then((data) => {
+      setAvailableModels(data.models);
+      setSelectedModel(data.default);
+    }).catch(() => {});
+  }, []);
 
   // Results
   const [expansionData, setExpansionData] = useState<QueryExpansionData | null>(null);
@@ -101,7 +112,7 @@ export default function RouteCPage() {
 
       const controller = enhancedRagQueryStream(
         query,
-        { topK: 3, useExpansion, useChunking, chunkStrategy, chunkSize, useHybrid, useReranking },
+        { topK: 3, useExpansion, useChunking, chunkStrategy, chunkSize, useHybrid, useReranking, model: selectedModel },
         (event) => {
           const { type, data } = event;
           if (type === 'config') {
@@ -194,7 +205,7 @@ export default function RouteCPage() {
       );
       controllerRef.current = controller;
     }
-  }, [reset, mode, useExpansion, useChunking, chunkStrategy, chunkSize, useHybrid, useReranking]);
+  }, [reset, mode, useExpansion, useChunking, chunkStrategy, chunkSize, useHybrid, useReranking, selectedModel]);
 
   const isEnhanced = mode === 'enhanced';
 
@@ -349,6 +360,28 @@ export default function RouteCPage() {
                           </button>
                         </div>
                       </div>
+
+                      {/* Model selector — spans full row */}
+                      {availableModels.length > 0 && (
+                        <div className="sm:col-span-2 lg:col-span-5 space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground">🤖 LLM 模型</label>
+                          <div className="flex flex-wrap gap-2">
+                            {availableModels.filter(m => !m.includes('embed')).map((m) => (
+                              <button
+                                key={m}
+                                onClick={() => setSelectedModel(m)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                                  selectedModel === m
+                                    ? 'bg-violet-50 dark:bg-violet-500/10 border-violet-300 dark:border-violet-500/30 text-violet-700 dark:text-violet-300'
+                                    : 'bg-muted/50 border-border text-muted-foreground hover:border-violet-300/50'
+                                }`}
+                              >
+                                {m}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>

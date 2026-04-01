@@ -136,11 +136,12 @@ def _multi_query_rrf(
     return sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
 
-def _expand_query(query: str, num_variants: int = 3) -> list[str]:
+def _expand_query(query: str, num_variants: int = 3, model: str | None = None) -> list[str]:
     """Use LLM to generate diverse query variants from different angles."""
     import re
     import httpx
 
+    llm = model or rag_service.LLM_MODEL
     prompt = (
         f"你是一个信息检索专家。用户提出了一个问题，你需要从不同的角度生成 {num_variants} 个检索查询，"
         f"帮助从知识库中找到更多相关文档。\n\n"
@@ -162,7 +163,7 @@ def _expand_query(query: str, num_variants: int = 3) -> list[str]:
             resp = client.post(
                 f"{rag_service.OLLAMA_BASE_URL}/api/chat",
                 json={
-                    "model": rag_service.LLM_MODEL,
+                    "model": llm,
                     "messages": [{"role": "user", "content": prompt}],
                     "stream": False,
                 },
@@ -367,9 +368,11 @@ async def enhanced_query_stream(
     use_hybrid: bool = True,
     use_reranking: bool = True,
     use_expansion: bool = False,
+    model: str | None = None,
 ) -> AsyncGenerator[dict, None]:
     """Enhanced RAG pipeline streaming SSE events."""
     t0 = time.perf_counter()
+    llm_model = model or rag_service.LLM_MODEL
 
     config = {
         "use_expansion": use_expansion,
@@ -379,6 +382,7 @@ async def enhanced_query_stream(
         "use_hybrid": use_hybrid,
         "use_reranking": use_reranking,
         "top_k": top_k,
+        "model": llm_model,
     }
     yield {"event": "config", "data": json.dumps(config, ensure_ascii=False)}
 
@@ -388,7 +392,7 @@ async def enhanced_query_stream(
     # Step 1 (optional): Query Expansion
     all_queries = [query]
     if use_expansion:
-        variants = _expand_query(query)
+        variants = _expand_query(query, model=llm_model)
         if variants:
             all_queries = [query] + variants
         yield {
@@ -472,7 +476,7 @@ async def enhanced_query_stream(
             "POST",
             f"{rag_service.OLLAMA_BASE_URL}/api/chat",
             json={
-                "model": rag_service.LLM_MODEL,
+                "model": llm_model,
                 "messages": [
                     {"role": "system", "content": rag_service.SYSTEM_PROMPT},
                     {"role": "user", "content": prompt},
@@ -500,7 +504,7 @@ async def enhanced_query_stream(
         "data": json.dumps({
             "full_answer": full_answer,
             "elapsed_ms": elapsed_ms,
-            "model": rag_service.LLM_MODEL,
+            "model": llm_model,
             "config": config,
             "sources": sources,
         }, ensure_ascii=False),

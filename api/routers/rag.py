@@ -9,6 +9,15 @@ from ..services import rag_service
 router = APIRouter(prefix="/rag", tags=["RAG"])
 
 
+@router.get("/models")
+async def list_models():
+    """List available Ollama LLM models."""
+    info = rag_service.check_ollama()
+    if info["status"] != "connected":
+        return {"models": [], "default": rag_service.LLM_MODEL}
+    return {"models": info["models"], "default": rag_service.LLM_MODEL}
+
+
 class RAGQueryRequest(BaseModel):
     query: str
     top_k: int = Field(default=3, ge=1, le=10)

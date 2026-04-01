@@ -18,6 +18,7 @@ class EnhancedRAGRequest(BaseModel):
     chunk_size: int = Field(default=200, ge=50, le=500)
     use_hybrid: bool = True
     use_reranking: bool = True
+    model: str | None = None
 
 
 @router.post("/enhanced-query")
@@ -32,6 +33,7 @@ async def enhanced_query(req: EnhancedRAGRequest):
             chunk_size=req.chunk_size,
             use_hybrid=req.use_hybrid,
             use_reranking=req.use_reranking,
+            model=req.model,
         ):
             yield {"event": event["event"], "data": event["data"]}
 
