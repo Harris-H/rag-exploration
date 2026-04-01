@@ -137,13 +137,24 @@ def _multi_query_rrf(
 
 
 def _expand_query(query: str, num_variants: int = 3) -> list[str]:
-    """Use LLM to generate semantically equivalent query variants."""
+    """Use LLM to generate diverse query variants from different angles."""
+    import re
     import httpx
 
     prompt = (
-        f"你是一个查询改写助手。请将用户的问题改写为 {num_variants} 个不同的表述方式，"
-        f"保持语义相同但使用不同的关键词和句式。每行一个，不要编号，不要解释。\n\n"
-        f"用户问题：{query}\n\n改写结果："
+        f"你是一个信息检索专家。用户提出了一个问题，你需要从不同的角度生成 {num_variants} 个检索查询，"
+        f"帮助从知识库中找到更多相关文档。\n\n"
+        f"要求：\n"
+        f"- 每个查询必须使用不同的关键词和切入角度\n"
+        f"- 不要简单换句式，要从不同技术方向切入（如：换专业术语、换子问题、换具体方法）\n"
+        f"- 查询要简短精炼（10-25字），像搜索引擎关键词\n"
+        f"- 直接输出查询内容，每行一个，不要编号，不要加\"用户问题\"等前缀\n\n"
+        f"示例：\n"
+        f"问题：怎么让模型回答更准确？\n"
+        f"RAG 检索增强生成 减少幻觉\n"
+        f"提示工程 Prompt 模板优化技巧\n"
+        f"Cross-Encoder 重排序提升检索质量\n\n"
+        f"问题：{query}\n"
     )
 
     try:
@@ -162,10 +173,10 @@ def _expand_query(query: str, num_variants: int = 3) -> list[str]:
         variants = []
         for line in content.strip().split("\n"):
             line = line.strip()
-            # Strip leading numbering like "1." or "1、" or "- "
-            import re
             line = re.sub(r"^[\d]+[.、)）]\s*", "", line)
             line = re.sub(r"^[-*]\s*", "", line)
+            line = re.sub(r"^(用户)?问题[：:]\s*", "", line)
+            line = re.sub(r"^查询\d*[：:]\s*", "", line)
             line = line.strip()
             if line and line != query and len(line) > 3:
                 variants.append(line)
