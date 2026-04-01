@@ -5,6 +5,7 @@ Implements a configurable 7-step pipeline:
 """
 
 import json
+import re
 import time
 from dataclasses import dataclass
 from typing import AsyncGenerator
@@ -138,7 +139,6 @@ def _multi_query_rrf(
 
 def _expand_query(query: str, num_variants: int = 3, model: str | None = None) -> list[str]:
     """Use LLM to generate diverse query variants from different angles."""
-    import re
     import httpx
 
     llm = model or rag_service.LLM_MODEL
@@ -166,6 +166,7 @@ def _expand_query(query: str, num_variants: int = 3, model: str | None = None) -
                     "model": llm,
                     "messages": [{"role": "user", "content": prompt}],
                     "stream": False,
+                    "think": False,
                 },
             )
             resp.raise_for_status()
@@ -307,14 +308,12 @@ def _post_process_citations(
     2. Otherwise, split answer into sentences, compute overlap with each
        source chunk, and inject [N] at the end of sentences with high overlap.
     """
-    import re as _re
-
     # Clean up malformed brackets the LLM might produce
-    answer = _re.sub(r"\[\s*\]", "", answer)       # empty []
-    answer = _re.sub(r"\[R(\d+)\]", r"[\1]", answer)  # [R3] → [3]
+    answer = re.sub(r"\[\s*\]", "", answer)       # empty []
+    answer = re.sub(r"\[R(\d+)\]", r"[\1]", answer)  # [R3] → [3]
 
     # Check if valid citations already exist
-    existing = set(int(m) for m in _re.findall(r"\[(\d+)\]", answer))
+    existing = set(int(m) for m in re.findall(r"\[(\d+)\]", answer))
     valid_indices = set(range(1, len(chunks) + 1))
     if existing & valid_indices:
         return answer.strip()
@@ -328,7 +327,7 @@ def _post_process_citations(
         return len(s_chars & c_chars) / len(s_chars | c_chars)
 
     # Split answer into sentences (Chinese punctuation aware)
-    sentences = _re.split(r"(?<=[。！？\n])", answer)
+    sentences = re.split(r"(?<=[。！？\n])", answer)
     result_parts: list[str] = []
 
     for sent in sentences:
@@ -347,7 +346,7 @@ def _post_process_citations(
 
         if best_score > 0.15 and best_idx > 0:
             # Insert citation before the sentence-ending punctuation
-            m = _re.search(r"[。！？]$", sent)
+            m = re.search(r"[。！？]$", sent)
             if m:
                 pos = m.start()
                 sent = sent[:pos] + f"[{best_idx}]" + sent[pos:]
@@ -482,6 +481,7 @@ async def enhanced_query_stream(
                     {"role": "user", "content": prompt},
                 ],
                 "stream": True,
+                "think": False,
             },
         ) as resp:
             resp.raise_for_status()
@@ -494,9 +494,11 @@ async def enhanced_query_stream(
                     collected_tokens.append(token)
                     yield {"event": "token", "data": token}
 
-    # Step 7: Done — post-process citations
+    # Step 7: Done — post-process citations and strip thinking tags
     elapsed_ms = round((time.perf_counter() - t0) * 1000, 1)
     full_answer = "".join(collected_tokens)
+    # Strip any leaked <think>...</think> blocks
+    full_answer = re.sub(r"<think>.*?</think>", "", full_answer, flags=re.DOTALL).strip()
     if citation_chunks:
         full_answer = _post_process_citations(full_answer, citation_chunks)
     yield {
