@@ -247,6 +247,7 @@ export async function chunkingCompare(query: string, chunkSize: number = 150, ov
 // ── Enhanced RAG Pipeline ───────────────────────────────────────────────
 
 export interface EnhancedRAGConfig {
+  use_expansion: boolean;
   use_chunking: boolean;
   chunk_strategy: string | null;
   chunk_size: number | null;
@@ -274,6 +275,12 @@ export interface EnhancedRerankData {
   after: EnhancedRerankResult[];
 }
 
+export interface QueryExpansionData {
+  original: string;
+  variants: string[];
+  total_queries: number;
+}
+
 export interface ChunkingEventData {
   strategy: string;
   chunk_size: number;
@@ -292,6 +299,7 @@ export function enhancedRagQueryStream(
   query: string,
   options: {
     topK?: number;
+    useExpansion?: boolean;
     useChunking?: boolean;
     chunkStrategy?: string;
     chunkSize?: number;
@@ -307,6 +315,7 @@ export function enhancedRagQueryStream(
   const body = {
     query,
     top_k: options.topK ?? 3,
+    use_expansion: options.useExpansion ?? false,
     use_chunking: options.useChunking ?? true,
     chunk_strategy: options.chunkStrategy ?? 'recursive',
     chunk_size: options.chunkSize ?? 200,

@@ -16,6 +16,7 @@ import {
   type ChunkingEventData,
   type EnhancedDoneData,
   type EmbeddingResult,
+  type QueryExpansionData,
 } from '@/lib/api';
 import { Settings2, Zap, ZapOff, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -23,6 +24,7 @@ type StepStatus = 'idle' | 'active' | 'done';
 
 interface PipelineState {
   input: StepStatus;
+  expansion: StepStatus;
   chunking: StepStatus;
   retrieval: StepStatus;
   reranking: StepStatus;
@@ -31,7 +33,7 @@ interface PipelineState {
 }
 
 const INITIAL_PIPELINE: PipelineState = {
-  input: 'idle', chunking: 'idle', retrieval: 'idle',
+  input: 'idle', expansion: 'idle', chunking: 'idle', retrieval: 'idle',
   reranking: 'idle', prompt: 'idle', generation: 'idle',
 };
 
@@ -44,6 +46,7 @@ export default function RouteCPage() {
   const [pipeline, setPipeline] = useState<PipelineState>(INITIAL_PIPELINE);
 
   // Config
+  const [useExpansion, setUseExpansion] = useState(false);
   const [useChunking, setUseChunking] = useState(true);
   const [chunkStrategy, setChunkStrategy] = useState('recursive');
   const [chunkSize, setChunkSize] = useState(200);
@@ -52,6 +55,7 @@ export default function RouteCPage() {
   const [showConfig, setShowConfig] = useState(true);
 
   // Results
+  const [expansionData, setExpansionData] = useState<QueryExpansionData | null>(null);
   const [chunkingInfo, setChunkingInfo] = useState<ChunkingEventData | null>(null);
   const [retrievalResults, setRetrievalResults] = useState<(EnhancedChunkResult | EmbeddingResult)[]>([]);
   const [rerankData, setRerankData] = useState<EnhancedRerankData | null>(null);
@@ -63,6 +67,7 @@ export default function RouteCPage() {
 
   const reset = useCallback(() => {
     setError(null);
+    setExpansionData(null);
     setChunkingInfo(null);
     setRetrievalResults([]);
     setRerankData(null);
@@ -81,9 +86,11 @@ export default function RouteCPage() {
     if (mode === 'enhanced') {
       const skipChunking = !useChunking;
       const skipReranking = !useReranking;
+      const skipExpansion = !useExpansion;
       setPipeline({
         input: 'done',
-        chunking: skipChunking ? 'done' : 'active',
+        expansion: skipExpansion ? 'done' : 'active',
+        chunking: skipExpansion ? (skipChunking ? 'done' : 'active') : 'idle',
         retrieval: 'idle',
         reranking: 'idle',
         prompt: 'idle',
@@ -92,18 +99,22 @@ export default function RouteCPage() {
 
       const controller = enhancedRagQueryStream(
         query,
-        { topK: 3, useChunking, chunkStrategy, chunkSize, useHybrid, useReranking },
+        { topK: 3, useExpansion, useChunking, chunkStrategy, chunkSize, useHybrid, useReranking },
         (event) => {
           const { type, data } = event;
           if (type === 'config') {
             // config echo - skip
+          } else if (type === 'expansion') {
+            setExpansionData(data as QueryExpansionData);
+            setPipeline(p => ({ ...p, expansion: 'done', chunking: skipChunking ? 'done' : 'active' }));
           } else if (type === 'chunking') {
             setChunkingInfo(data as ChunkingEventData);
-            setPipeline(p => ({ ...p, chunking: 'done', retrieval: 'active' }));
+            setPipeline(p => ({ ...p, expansion: 'done', chunking: 'done', retrieval: 'active' }));
           } else if (type === 'retrieval') {
             setRetrievalResults(data as EnhancedChunkResult[]);
             setPipeline(p => ({
               ...p,
+              expansion: 'done',
               chunking: 'done',
               retrieval: 'done',
               reranking: skipReranking ? 'done' : 'active',
@@ -121,7 +132,7 @@ export default function RouteCPage() {
             const d = data as EnhancedDoneData;
             setDoneData(d);
             setPipeline({
-              input: 'done', chunking: 'done', retrieval: 'done',
+              input: 'done', expansion: 'done', chunking: 'done', retrieval: 'done',
               reranking: 'done', prompt: 'done', generation: 'done',
             });
             setIsStreaming(false);
@@ -142,7 +153,7 @@ export default function RouteCPage() {
     } else {
       // Baseline mode: use original RAG
       setPipeline({
-        input: 'done', chunking: 'done', retrieval: 'active',
+        input: 'done', expansion: 'done', chunking: 'done', retrieval: 'active',
         reranking: 'done', prompt: 'idle', generation: 'idle',
       });
 
@@ -161,7 +172,7 @@ export default function RouteCPage() {
             setRagAnswer(prev => prev + (typeof data === 'string' ? data : ''));
           } else if (type === 'done') {
             setPipeline({
-              input: 'done', chunking: 'done', retrieval: 'done',
+              input: 'done', expansion: 'done', chunking: 'done', retrieval: 'done',
               reranking: 'done', prompt: 'done', generation: 'done',
             });
             setIsStreaming(false);
@@ -177,7 +188,7 @@ export default function RouteCPage() {
       );
       controllerRef.current = controller;
     }
-  }, [reset, mode, useChunking, chunkStrategy, chunkSize, useHybrid, useReranking]);
+  }, [reset, mode, useExpansion, useChunking, chunkStrategy, chunkSize, useHybrid, useReranking]);
 
   const isEnhanced = mode === 'enhanced';
 
@@ -211,7 +222,7 @@ export default function RouteCPage() {
         </div>
         <p className="text-muted-foreground text-sm leading-relaxed max-w-3xl">
           {isEnhanced
-            ? '增强 RAG 管道：文档分块 → 混合检索(BM25+Embedding) → Cross-Encoder 重排序 → Prompt 构建 → LLM 流式生成。'
+            ? '增强 RAG 管道：查询扩展 → 文档分块 → 混合检索(BM25+Embedding) → Cross-Encoder 重排序 → Prompt 构建 → LLM 流式生成。'
             : '基线 RAG 管道：Embedding 检索全文档 → Prompt 构建 → LLM 流式生成。切换到增强模式查看分块+重排序的效果。'}
         </p>
       </motion.div>
@@ -241,8 +252,23 @@ export default function RouteCPage() {
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
-                      className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+                      className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4"
                     >
+                      {/* Toggle: Query Expansion */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-muted-foreground">查询扩展</label>
+                        <button
+                          onClick={() => setUseExpansion(!useExpansion)}
+                          className={`w-full px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                            useExpansion
+                              ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-300 dark:border-amber-500/30 text-amber-700 dark:text-amber-300'
+                              : 'bg-muted/50 border-border text-muted-foreground'
+                          }`}
+                        >
+                          {useExpansion ? '🔀 启用扩展' : '❌ 关闭'}
+                        </button>
+                      </div>
+
                       {/* Toggle: Chunking */}
                       <div className="space-y-2">
                         <label className="text-xs font-medium text-muted-foreground">文档分块</label>
@@ -358,33 +384,43 @@ export default function RouteCPage() {
                 {isEnhanced && (
                   <PipelineStep
                     number={2}
+                    title="查询扩展"
+                    description={useExpansion ? 'LLM 生成查询变体' : '跳过'}
+                    status={pipeline.expansion}
+                  />
+                )}
+                {isEnhanced && (
+                  <PipelineStep
+                    number={3}
                     title="文档分块"
                     description={useChunking ? `${chunkStrategy} · ${chunkSize}字` : '跳过（全文档模式）'}
                     status={pipeline.chunking}
                   />
                 )}
                 <PipelineStep
-                  number={isEnhanced ? 3 : 2}
+                  number={isEnhanced ? 4 : 2}
                   title={isEnhanced && useHybrid ? '混合检索' : '文档检索'}
-                  description={isEnhanced && useHybrid ? 'BM25 + Embedding + RRF' : 'Embedding 向量相似度'}
+                  description={isEnhanced && useHybrid
+                    ? (useExpansion ? '多查询 RRF 融合' : 'BM25 + Embedding + RRF')
+                    : 'Embedding 向量相似度'}
                   status={pipeline.retrieval}
                 />
                 {isEnhanced && (
                   <PipelineStep
-                    number={4}
+                    number={5}
                     title="重排序"
                     description={useReranking ? 'Cross-Encoder 精排' : '跳过'}
                     status={pipeline.reranking}
                   />
                 )}
                 <PipelineStep
-                  number={isEnhanced ? 5 : 3}
+                  number={isEnhanced ? 6 : 3}
                   title="Prompt 构建"
                   description="将检索结果注入提示词"
                   status={pipeline.prompt}
                 />
                 <PipelineStep
-                  number={isEnhanced ? 6 : 4}
+                  number={isEnhanced ? 7 : 4}
                   title="LLM 生成"
                   description="大语言模型生成答案"
                   status={pipeline.generation}
@@ -404,6 +440,40 @@ export default function RouteCPage() {
 
         {/* Right: Results */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Query Expansion info */}
+          <AnimatePresence>
+            {expansionData && isEnhanced && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                <h3 className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-3">🔀 查询扩展</h3>
+                <Card className="border-amber-200/50 dark:border-amber-500/20">
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Badge variant="outline" className="bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-500/30">
+                          原始查询
+                        </Badge>
+                        <span className="text-foreground font-medium">{expansionData.original}</span>
+                      </div>
+                      {expansionData.variants.length > 0 ? (
+                        <div className="space-y-1.5">
+                          <span className="text-xs text-muted-foreground">LLM 生成的查询变体（共 {expansionData.total_queries} 个查询参与检索）：</span>
+                          {expansionData.variants.map((v, i) => (
+                            <div key={i} className="flex items-center gap-2 text-sm pl-2 border-l-2 border-amber-200 dark:border-amber-500/30">
+                              <span className="text-xs text-muted-foreground font-mono">#{i + 1}</span>
+                              <span className="text-foreground">{v}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">未生成有效变体，使用原始查询检索</span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Chunking info */}
           <AnimatePresence>
             {chunkingInfo && isEnhanced && (

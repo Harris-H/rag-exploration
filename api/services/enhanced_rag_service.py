@@ -1,7 +1,7 @@
-"""Enhanced RAG service with chunking, hybrid retrieval, and reranking.
+"""Enhanced RAG service with query expansion, chunking, hybrid retrieval, and reranking.
 
-Implements a configurable 6-step pipeline:
-  User Input → Chunking → Hybrid Retrieval → Reranking → Prompt → LLM Streaming
+Implements a configurable 7-step pipeline:
+  User Input → Query Expansion → Chunking → Hybrid Retrieval → Reranking → Prompt → LLM Streaming
 """
 
 import json
@@ -123,6 +123,57 @@ def _rrf_fusion(
     return sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
 
+def _multi_query_rrf(
+    ranked_lists: list[list[tuple[int, float]]],
+    k: int = 60,
+) -> list[tuple[int, float]]:
+    """RRF fusion across multiple ranked lists (one per query variant)."""
+    scores: dict[int, float] = {}
+    weight = 1.0 / len(ranked_lists)
+    for ranked in ranked_lists:
+        for rank, (idx, score) in enumerate(ranked, 1):
+            scores[idx] = scores.get(idx, 0) + weight / (k + rank)
+    return sorted(scores.items(), key=lambda x: x[1], reverse=True)
+
+
+def _expand_query(query: str, num_variants: int = 3) -> list[str]:
+    """Use LLM to generate semantically equivalent query variants."""
+    import httpx
+
+    prompt = (
+        f"你是一个查询改写助手。请将用户的问题改写为 {num_variants} 个不同的表述方式，"
+        f"保持语义相同但使用不同的关键词和句式。每行一个，不要编号，不要解释。\n\n"
+        f"用户问题：{query}\n\n改写结果："
+    )
+
+    try:
+        with httpx.Client(proxy=None, timeout=30) as client:
+            resp = client.post(
+                f"{rag_service.OLLAMA_BASE_URL}/api/chat",
+                json={
+                    "model": rag_service.LLM_MODEL,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "stream": False,
+                },
+            )
+            resp.raise_for_status()
+            content = resp.json().get("message", {}).get("content", "")
+
+        variants = []
+        for line in content.strip().split("\n"):
+            line = line.strip()
+            # Strip leading numbering like "1." or "1、" or "- "
+            import re
+            line = re.sub(r"^[\d]+[.、)）]\s*", "", line)
+            line = re.sub(r"^[-*]\s*", "", line)
+            line = line.strip()
+            if line and line != query and len(line) > 3:
+                variants.append(line)
+        return variants[:num_variants]
+    except Exception:
+        return []
+
+
 def _retrieve_chunks(
     query: str,
     index: ChunkIndex,
@@ -144,6 +195,34 @@ def _retrieve_chunks(
 
     hybrid_ranked = _rrf_fusion(bm25_ranked, embed_ranked)
     return [(index.chunks[idx], float(score)) for idx, score in hybrid_ranked[:top_k]]
+
+
+def _retrieve_chunks_multi_query(
+    queries: list[str],
+    index: ChunkIndex,
+    top_k: int = 5,
+    use_hybrid: bool = True,
+) -> list[tuple[ChunkInfo, float]]:
+    """Retrieve chunks using multiple query variants, fused via RRF."""
+    embedding_service._ensure_model()
+
+    per_query_ranked: list[list[tuple[int, float]]] = []
+    for q in queries:
+        q_vec = embedding_service._model.encode([q], normalize_embeddings=True)
+        sims = (q_vec @ index.embeddings.T).flatten()
+
+        if not use_hybrid:
+            ranked = sorted(enumerate(sims.tolist()), key=lambda x: x[1], reverse=True)
+            per_query_ranked.append(ranked[:top_k * 3])
+        else:
+            embed_ranked = sorted(enumerate(sims.tolist()), key=lambda x: x[1], reverse=True)[:top_k * 3]
+            bm25_scores = index.bm25.get_scores(_tokenize(q))
+            bm25_ranked = sorted(enumerate(bm25_scores), key=lambda x: x[1], reverse=True)[:top_k * 3]
+            hybrid_ranked = _rrf_fusion(bm25_ranked, embed_ranked)
+            per_query_ranked.append(hybrid_ranked[:top_k * 3])
+
+    fused = _multi_query_rrf(per_query_ranked)
+    return [(index.chunks[idx], float(score)) for idx, score in fused[:top_k]]
 
 
 def _rerank_chunks(
@@ -210,11 +289,13 @@ async def enhanced_query_stream(
     chunk_size: int = 200,
     use_hybrid: bool = True,
     use_reranking: bool = True,
+    use_expansion: bool = False,
 ) -> AsyncGenerator[dict, None]:
     """Enhanced RAG pipeline streaming SSE events."""
     t0 = time.perf_counter()
 
     config = {
+        "use_expansion": use_expansion,
         "use_chunking": use_chunking,
         "chunk_strategy": chunk_strategy if use_chunking else None,
         "chunk_size": chunk_size if use_chunking else None,
@@ -224,8 +305,23 @@ async def enhanced_query_stream(
     }
     yield {"event": "config", "data": json.dumps(config, ensure_ascii=False)}
 
+    # Step 1 (optional): Query Expansion
+    all_queries = [query]
+    if use_expansion:
+        variants = _expand_query(query)
+        if variants:
+            all_queries = [query] + variants
+        yield {
+            "event": "expansion",
+            "data": json.dumps({
+                "original": query,
+                "variants": variants,
+                "total_queries": len(all_queries),
+            }, ensure_ascii=False),
+        }
+
     if use_chunking:
-        # Step 1: Chunking
+        # Step 2: Chunking
         index = _build_chunk_index(chunk_strategy, chunk_size)
         chunking_info = {
             "strategy": chunk_strategy,
@@ -235,9 +331,14 @@ async def enhanced_query_stream(
         }
         yield {"event": "chunking", "data": json.dumps(chunking_info, ensure_ascii=False)}
 
-        # Step 2: Retrieve chunks (get more candidates if reranking)
+        # Step 3: Retrieve chunks (multi-query if expanded)
         retrieve_count = top_k * 3 if use_reranking else top_k
-        candidates = _retrieve_chunks(query, index, retrieve_count, use_hybrid)
+        if len(all_queries) > 1:
+            candidates = _retrieve_chunks_multi_query(
+                all_queries, index, retrieve_count, use_hybrid,
+            )
+        else:
+            candidates = _retrieve_chunks(query, index, retrieve_count, use_hybrid)
 
         retrieval_data = [
             {
@@ -250,7 +351,7 @@ async def enhanced_query_stream(
         ]
         yield {"event": "retrieval", "data": json.dumps(retrieval_data, ensure_ascii=False)}
 
-        # Step 3: Rerank (optional)
+        # Step 4: Rerank (optional)
         if use_reranking and len(candidates) > 0:
             rerank_result = _rerank_chunks(query, candidates, top_k)
             yield {"event": "reranking", "data": json.dumps({
@@ -261,7 +362,7 @@ async def enhanced_query_stream(
         else:
             final_chunks = candidates[:top_k]
 
-        # Step 4: Build prompt from chunks
+        # Step 5: Build prompt from chunks
         prompt = _build_enhanced_prompt(query, final_chunks)
     else:
         # Fallback: use original full-doc retrieval
@@ -275,7 +376,7 @@ async def enhanced_query_stream(
 
     yield {"event": "prompt", "data": prompt}
 
-    # Step 5: Stream LLM tokens
+    # Step 6: Stream LLM tokens
     collected_tokens: list[str] = []
     async with rag_service._get_async_http_client() as client:
         async with client.stream(
@@ -300,7 +401,7 @@ async def enhanced_query_stream(
                     collected_tokens.append(token)
                     yield {"event": "token", "data": token}
 
-    # Step 6: Done
+    # Step 7: Done
     elapsed_ms = round((time.perf_counter() - t0) * 1000, 1)
     full_answer = "".join(collected_tokens)
     yield {
